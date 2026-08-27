@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BINBOL Production — Shift Rapportage</title>
+<title>WML Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -74,7 +74,8 @@ tailwind.config = {
 <body class="bg-background text-on-surface">
 
 <div id="demo-banner" class="bg-primary text-white text-center text-[11px] py-1.5 px-3">
-  <b>Shift Rapportage</b> — 
+  <b>WML Shift Rapportage</b> — Gehost op GitHub Pages · Data via Power Automate → SharePoint. 
+  Vul de Flow-URLs in via <b>Configuratie → Verbinding</b> na het publiceren van de flows.
 </div>
 
 <div id="sp-status" class="bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2" style="display:none">
@@ -924,20 +925,87 @@ function switchAfdeling(afdeling){
 }
 
 // ============ DAGOVERLEG ============
-function renderDagoverleg(){
-  const open = VERVOLGACTIES.filter(function(v){return v.status!=='Afgerond';});
-  const actieveBlokkades = [];
-  ['Productie','Inpak'].forEach(function(afdeling){
-    formState[afdeling].blokkades.forEach(function(b, idx){
-      if(b.status==='Actief') actieveBlokkades.push(Object.assign({afdeling:afdeling, idx:idx}, b));
+// Verwerkt SharePoint-items (uit Flow 2) naar het VERVOLGACTIES-formaat
+// dat renderDagoverlegUI() al kent. Zodat we de UI-logica niet hoeven te dupliceren.
+function spItemNaarVervolgactie(item, idx){
+  return {
+    id:          'sp-' + (item.ID || idx),
+    titel:       item.Omschrijving || item.Title || '(geen omschrijving)',
+    afdeling:    item.Afdeling || '',
+    lijn:        item.Lijn || '',
+    vervolgactie: item.Vervolgactie || 'Geen',
+    status:      item.DagoverlegStatus || 'Open',
+    prioriteit:  item.Prioriteit || 'Laag',
+    gemeld:      0,       // dagenteller: SharePoint-items zijn altijd "nieuw" vanuit app-perspectief
+    spId:        item.ID  // bewaren voor straks als we DagoverlegStatus kunnen PATCHEN
+  };
+}
+function spItemNaarBlokkade(item){
+  return {
+    afdeling:   item.Afdeling || '',
+    idx:        null,     // geen lokale index — komt uit SharePoint
+    spId:       item.ID,
+    type:       item.BlokkadeType || '',
+    artikel:    item.Omschrijving || item.Title || '',
+    batchTht:   item.BatchTht || '',
+    locatie:    item.Locatie || '',
+    status:     item.BlokkadeStatus || 'Actief'
+  };
+}
+
+async function renderDagoverleg(){
+  // Laad-indicator tonen terwijl we wachten op de flow
+  document.getElementById('dagoverleg-content').innerHTML =
+    '<p class="text-sm text-muted flex items-center gap-2">'
+    + '<span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>'
+    + ' Dagoverleg ophalen uit SharePoint...</p>';
+
+  let spAfwijkingen = [];
+  let spBlokkades   = [];
+
+  if(FLOW_URLS.getDagoverleg){
+    try {
+      const resp = await fetch(FLOW_URLS.getDagoverleg, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ afdeling: huidigeAfdeling })
+      });
+      if(resp.ok){
+        const data = await resp.json();
+        spAfwijkingen = (data.afwijkingen || []).map(spItemNaarVervolgactie);
+        spBlokkades   = (data.blokkades   || []).map(spItemNaarBlokkade);
+      } else {
+        console.warn('Flow 2 gaf HTTP', resp.status, '— toon alleen lokale items');
+      }
+    } catch(e){
+      console.warn('Flow 2 niet bereikbaar — toon alleen lokale items:', e.message);
+    }
+  }
+
+  // Combineer SharePoint-items met lokale items die in deze sessie zijn aangemaakt
+  // maar nog niet zijn overgedragen (staan al in VERVOLGACTIES via pushNaarDagoverleg).
+  // Dedupliceer op SpId zodat items die al in SharePoint staan niet dubbel verschijnen.
+  const spIds = new Set(spAfwijkingen.map(function(v){ return v.spId; }));
+  const lokaalNieuw = VERVOLGACTIES.filter(function(v){ return !v.spId || !spIds.has(v.spId); });
+  const gecombineerd = spAfwijkingen.concat(lokaalNieuw);
+
+  // Lokale actieve blokkades (huidig sessie, nog niet overgedragen)
+  const lokaalBlokkades = [];
+  ['Productie','Inpak'].forEach(function(afd){
+    formState[afd].blokkades.forEach(function(b, idx){
+      if(b.status==='Actief') lokaalBlokkades.push(Object.assign({afdeling:afd, idx:idx}, b));
     });
   });
-  ['count-open'].forEach(function(id){
-    const el = document.getElementById(id);
-    const totaal = open.length + actieveBlokkades.length;
-    el.textContent = totaal;
-    el.classList.toggle('zero', totaal===0);
-  });
+  const alleBlokkades = spBlokkades.concat(lokaalBlokkades);
+
+  renderDagoverlegUI(gecombineerd, alleBlokkades);
+}
+
+function renderDagoverlegUI(open, actieveBlokkades){
+  const totaal = open.filter(function(v){return v.status!=='Afgerond';}).length + actieveBlokkades.length;
+  const teller = document.getElementById('count-open');
+  teller.textContent = totaal;
+  teller.classList.toggle('zero', totaal===0);
 
   document.getElementById('dagoverleg-blokkades').innerHTML = actieveBlokkades.length ? (
     '<div class="flex items-center gap-2 mb-2 px-1">'
@@ -945,16 +1013,20 @@ function renderDagoverleg(){
     + '<span class="text-section-header">Actieve blokkades (QA)</span>'
     + '<span class="tab-count">'+actieveBlokkades.length+'</span></div>'
     + actieveBlokkades.map(function(b){
+        const vrijgeefFn = b.idx!=null
+          ? 'handleVrijgevenBlokkade(\''+b.afdeling+'\','+b.idx+')'
+          : 'alert(\'Vrijgeven vanuit Dagoverleg: open het item in SharePoint of wacht tot de volgende sync.\')';
         return '<div class="bg-paper border border-border border-l-4 border-l-danger bg-danger-pale/30 rounded-lg p-3 mb-2 flex flex-wrap items-center gap-3">'
           + '<div class="flex-1 min-w-[200px]"><p class="text-sm font-bold flex items-center gap-2 flex-wrap"><span class="prioriteit-badge prioriteit-Hoog">'+esc(b.type)+'</span>'+esc(b.artikel)+'</p>'
           + '<p class="text-xs text-muted mt-0.5 font-mono-num">'+b.afdeling+' · Batch/THT '+esc(b.batchTht)+(b.locatie?' · '+esc(b.locatie):'')+'</p></div>'
-          + '<button class="text-secondary text-xs font-bold hover:underline" onclick="handleVrijgevenBlokkade(\''+b.afdeling+'\','+b.idx+')">✓ Vrijgeven</button></div>';
+          + '<button class="text-secondary text-xs font-bold hover:underline" onclick="'+vrijgeefFn+'">✓ Vrijgeven</button></div>';
       }).join('')
   ) : '';
 
+  const openItems = open.filter(function(v){return v.status!=='Afgerond';});
   const groepen = {};
   CONFIG.vervolgactieRoutes.forEach(function(r){ groepen[r.code]=[]; });
-  open.forEach(function(v){ (groepen[v.vervolgactie]=groepen[v.vervolgactie]||[]).push(v); });
+  openItems.forEach(function(v){ (groepen[v.vervolgactie]=groepen[v.vervolgactie]||[]).push(v); });
 
   let html = '';
   CONFIG.vervolgactieRoutes.forEach(function(route){
@@ -979,6 +1051,15 @@ function renderDagoverleg(){
     });
     html += '</div>';
   });
+
+  if(!FLOW_URLS.getDagoverleg){
+    html = '<div class="bg-warning-pale border border-warning rounded-lg p-3 text-xs text-warning flex items-start gap-2 mb-4">'
+      + '<span class="material-symbols-outlined text-[16px] shrink-0">info</span>'
+      + '<span>Flow 2-URL nog niet ingesteld — alleen items van deze sessie worden getoond. '
+      + 'Stel de URL in via <b>Configuratie → Verbinding</b> om historische data uit SharePoint te laden.</span></div>'
+      + html;
+  }
+
   document.getElementById('dagoverleg-content').innerHTML = html || '<p class="text-sm text-muted italic">Geen openstaande vervolgacties.</p>';
 }
 function handleAfronden(id, routeCode){
@@ -2371,10 +2452,10 @@ function renderConfigVerbinding(){
     + 'value="' + esc(FLOW_URLS.overdracht) + '" onchange="cfSlaFlowUrlOp(\'overdracht\',this.value)">'
     + '<p class="text-micro-caption text-muted mt-0.5">Ontvangt de volledige shift-payload bij elke Overdracht.</p></div>'
 
-    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 2 — Dagoverleg ophalen (optioneel, later)</label>'
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 2 — Dagoverleg ophalen</label>'
     + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
-    + 'id="cfg-flow-dagoverleg" type="url" placeholder="Nog niet beschikbaar — later toe te voegen" '
-    + 'value="' + esc(FLOW_URLS.getDagoverleg) + '" onchange="cfSlaFlowUrlOp(\'getDagoverleg\',this.value)" disabled></div>'
+    + 'id="cfg-flow-dagoverleg" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
+    + 'value="' + esc(FLOW_URLS.getDagoverleg) + '" onchange="cfSlaFlowUrlOp(\'getDagoverleg\',this.value)"></div>'
 
     + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 3 — Vorige shift ophalen (optioneel, later)</label>'
     + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
