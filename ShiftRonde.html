@@ -2155,49 +2155,154 @@ function confirmAftekenen(){
   closeModal('modal-aftekenen');
 }
 
+function nn(v){ return v != null ? v : ''; }   // null/undefined → lege string
+function nb(v){ return !!v; }                   // null/undefined → false
+
 function bouwSharePointPayload(afdeling){
   const fs = formState[afdeling];
-  const shiftRapport = { contentType:'ShiftRapporten', afdeling:afdeling, datum:fs.datum, shift:fs.shift, teamleider:fs.teamleider, status:fs.status,
-    rondeGelopen: (fs.rondeMomenten||[]).length>0, rondeMomenten: fs.rondeMomenten||[], rondeReden: fs.rondeReden||'',
-    rondeVereistAantal: CONFIG.rondeVereistAantal,
-    personeleBezetting: fs.personeleBezetting||'', algemenePuntenDagoverleg: fs.algemenePuntenDagoverleg||'',
-    ccpGecontroleerd: false, gembaAfgestemd: !!fs.gembaAfgestemd,
-    actiesVolgendeShift:fs.actiesVolgendeShift, voorbereiding: fs.voorbereiding!=null?fs.voorbereiding:null,
-    overgedragenDoor: fs.overgedragenDoor||null, overgedragenOp: fs.overgedragenOp||null };
+  const shiftRapport = {
+    contentType:              'ShiftRapporten',
+    afdeling:                 afdeling,
+    datum:                    nn(fs.datum),
+    shift:                    nn(fs.shift),
+    teamleider:               nn(fs.teamleider),
+    status:                   nn(fs.status),
+    rondeGelopen:             (fs.rondeMomenten||[]).length > 0,
+    rondeMomenten:            fs.rondeMomenten || [],
+    rondeReden:               nn(fs.rondeReden),
+    rondeVereistAantal:       CONFIG.rondeVereistAantal,
+    personeleBezetting:       nn(fs.personeleBezetting),
+    algemenePuntenDagoverleg: nn(fs.algemenePuntenDagoverleg),
+    ccpGecontroleerd:         false,
+    gembaAfgestemd:           nb(fs.gembaAfgestemd),
+    actiesVolgendeShift:      nn(fs.actiesVolgendeShift),
+    voorbereiding:            nn(fs.voorbereiding),
+    overgedragenDoor:         nn(fs.overgedragenDoor),
+    overgedragenOp:           nn(fs.overgedragenOp)
+  };
+
   const shiftKpi = Object.keys(fs.lijnen).map(function(lijn){
     const t = berekenLijnTotalen(afdeling, lijn);
-    return {contentType:'ShiftKPI', afdeling:afdeling, lijn:lijn, wasteKg:t.waste, reworkKg:t.rework, stilstandMin:t.stilstand,
-      schoonmaakStatus: fs.lijnen[lijn].schoonmaakStatus||null, bron:'optelsom van Afwijking-records'};
+    return {
+      contentType:      'ShiftKPI',
+      afdeling:         afdeling,
+      lijn:             lijn,
+      wasteKg:          t.waste,
+      reworkKg:         t.rework,
+      stilstandMin:     t.stilstand,
+      schoonmaakStatus: nn(fs.lijnen[lijn].schoonmaakStatus)
+    };
   });
+
+  // Helper: maak een volledig afwijking-object met alle velden altijd aanwezig.
+  // Power Automate schema-validatie faalt als een veld ontbreekt of null is waar
+  // het schema een string verwacht — dit voorkomt die fout structureel.
+  function maakAfwijkingObject(basis){
+    return {
+      contentType:        nn(basis.contentType),
+      afdeling:           nn(basis.afdeling),
+      lijn:               nn(basis.lijn),
+      categorie:          nn(basis.categorie),
+      omschrijving:       nn(basis.omschrijving),
+      effectImpact:       nn(basis.effectImpact),
+      oorzaak:            nn(basis.oorzaak),
+      correctief:         nn(basis.correctief),
+      preventief:         nn(basis.preventief),
+      wasteKg:            basis.wasteKg     != null ? basis.wasteKg     : 0,
+      reworkKg:           basis.reworkKg    != null ? basis.reworkKg    : 0,
+      stilstandMin:       basis.stilstandMin != null ? basis.stilstandMin : 0,
+      extraWerkMin:       basis.extraWerkMin != null ? basis.extraWerkMin : 0,
+      wasteReden:         nn(basis.wasteReden),
+      reworkReden:        nn(basis.reworkReden),
+      stilstandReden:     nn(basis.stilstandReden),
+      extrawerkReden:     nn(basis.extrawerkReden),
+      drempelOverschreden: nb(basis.drempelOverschreden),
+      escalatieniveau:    nn(basis.escalatieniveau),
+      vervolgactie:       nn(basis.vervolgactie),
+      prioriteit:         nn(basis.prioriteit),
+      toegewezen:         nn(basis.toegewezen),
+      gemeldOp:           nn(basis.gemeldOp),
+      vreemdVoorwerp:     nb(basis.vreemdVoorwerp),   // altijd aanwezig, altijd boolean
+      heeftFoto:          nb(basis.heeftFoto)          // altijd aanwezig, altijd boolean
+    };
+  }
+
   const afwijkingen = [];
   Object.keys(fs.lijnen).forEach(function(lijn){
     fs.lijnen[lijn].afwijkingen.forEach(function(a){
-      afwijkingen.push({contentType:'Afwijking', afdeling:afdeling, lijn:lijn, categorie:'Productie-afwijking', omschrijving:a.omschrijving, effectImpact:a.impact, oorzaak:a.oorzaak,
-        correctief:a.correctief, preventief:a.preventief, wasteKg:a.wasteKg, reworkKg:a.reworkKg, stilstandMin:a.stilstandMin, extraWerkMin:a.extraWerkMin||0,
-        wasteReden:a.wasteReden||null, reworkReden:a.reworkReden||null, stilstandReden:a.stilstandReden||null, extrawerkReden:a.extrawerkReden||null,
-        drempelOverschreden:a.drempelOverschreden,
-        escalatieniveau:a.escalatieniveau, vervolgactie:a.vervolgactie, prioriteit:a.prioriteit, toegewezen:a.toegewezen||null, gemeldOp:a.gemeldOp});
+      afwijkingen.push(maakAfwijkingObject({
+        contentType:'Afwijking', afdeling:afdeling, lijn:lijn, categorie:'Productie-afwijking',
+        omschrijving:a.omschrijving, effectImpact:a.impact, oorzaak:a.oorzaak,
+        correctief:a.correctief, preventief:a.preventief,
+        wasteKg:a.wasteKg, reworkKg:a.reworkKg, stilstandMin:a.stilstandMin, extraWerkMin:a.extraWerkMin,
+        wasteReden:a.wasteReden, reworkReden:a.reworkReden, stilstandReden:a.stilstandReden, extrawerkReden:a.extrawerkReden,
+        drempelOverschreden:a.drempelOverschreden, escalatieniveau:a.escalatieniveau,
+        vervolgactie:a.vervolgactie, prioriteit:a.prioriteit, toegewezen:a.toegewezen,
+        gemeldOp:a.gemeldOp, vreemdVoorwerp:false, heeftFoto:false
+      }));
     });
   });
+
   const mededelingen = [];
   fs.veiligheid.forEach(function(v){
-    if(v.categorie==='Planning') mededelingen.push({contentType:'Mededeling', afdeling:afdeling, categorie:v.categorie, omschrijving:v.omschrijving, vervolgactie:v.vervolgactie, gemeldOp:v.gemeldOp});
-    // heeftFoto: alleen een aanwezigheidsvlag in de payload-log, geen base64-data — dat zou de console
-    // dichtslibben. In SharePoint wordt dit de native Attachments-functie op het lijst-item.
-    else afwijkingen.push({contentType:'Afwijking', afdeling:afdeling, lijn:'Veiligheid/Voedselveiligheid', categorie:v.categorie, omschrijving:v.omschrijving, effectImpact:v.impact, oorzaak:v.oorzaak,
-      correctief:v.correctief, preventief:v.preventief, wasteKg:null, reworkKg:null, stilstandMin:null, drempelOverschreden:null, escalatieniveau:v.escalatieniveau,
-      vervolgactie:v.vervolgactie, prioriteit:v.prioriteit, toegewezen:null, gemeldOp:v.gemeldOp, heeftFoto: !!v.foto, vreemdVoorwerp: !!v.vreemdVoorwerp});
+    if(v.categorie==='Planning'){
+      mededelingen.push({
+        contentType:  'Mededeling',
+        afdeling:     afdeling,
+        categorie:    nn(v.categorie),
+        omschrijving: nn(v.omschrijving),
+        vervolgactie: nn(v.vervolgactie),
+        gemeldOp:     nn(v.gemeldOp)
+      });
+    } else {
+      afwijkingen.push(maakAfwijkingObject({
+        contentType:'Afwijking', afdeling:afdeling, lijn:'Veiligheid/Voedselveiligheid',
+        categorie:v.categorie, omschrijving:v.omschrijving, effectImpact:v.impact,
+        oorzaak:v.oorzaak, correctief:v.correctief, preventief:v.preventief,
+        wasteKg:0, reworkKg:0, stilstandMin:0, extraWerkMin:0,
+        escalatieniveau:v.escalatieniveau, vervolgactie:v.vervolgactie,
+        prioriteit:v.prioriteit, gemeldOp:v.gemeldOp,
+        vreemdVoorwerp: nb(v.vreemdVoorwerp),
+        heeftFoto:      nb(v.foto)
+      }));
+    }
   });
+
   const blokkades = fs.blokkades.map(function(b){
-    return {contentType:'Blokkade', afdeling:afdeling, type:b.type, artikel:b.artikel, batchTht:b.batchTht, hoeveelheid:b.hoeveelheid||null, locatie:b.locatie||null,
-      reden:b.reden, status:b.status, heeftFoto: !!b.foto, gemeldDoor:b.gemeldDoor||null, gemeldOp:b.gemeldOp,
-      vrijgegevenDoor:b.vrijgegevenDoor||null, vrijgegevenOp:b.vrijgegevenOp||null};
+    return {
+      contentType:   'Blokkade',
+      afdeling:      afdeling,
+      type:          nn(b.type),
+      artikel:       nn(b.artikel),
+      batchTht:      nn(b.batchTht),
+      hoeveelheid:   nn(b.hoeveelheid),
+      locatie:       nn(b.locatie),
+      reden:         nn(b.reden),
+      status:        nn(b.status),
+      heeftFoto:     nb(b.foto),
+      gemeldDoor:    nn(b.gemeldDoor),
+      gemeldOp:      nn(b.gemeldOp),
+      vrijgegevenDoor: nn(b.vrijgegevenDoor),
+      vrijgegevenOp:   nn(b.vrijgegevenOp)
+    };
   });
+
   const eWegingen = fs.eWegingen.map(function(e){
-    return {contentType:'EWegingUitstoot', afdeling:afdeling, lijn:e.lijn, artikelBatch:e.artikelBatch, tijdvak:e.tijdvak, soortUitstoot:e.soortUitstoot,
-      hoeveelheid:e.hoeveelheid, actie:e.actie, gemeldDoor:e.gemeldDoor||null, gemeldOp:e.gemeldOp};
+    return {
+      contentType:   'EWegingUitstoot',
+      afdeling:      afdeling,
+      lijn:          nn(e.lijn),
+      artikelBatch:  nn(e.artikelBatch),
+      tijdvak:       nn(e.tijdvak),
+      soortUitstoot: nn(e.soortUitstoot),
+      hoeveelheid:   e.hoeveelheid != null ? e.hoeveelheid : 0,
+      actie:         nn(e.actie),
+      gemeldDoor:    nn(e.gemeldDoor),
+      gemeldOp:      nn(e.gemeldOp)
+    };
   });
-  return {shiftRapport:shiftRapport, shiftKpi:shiftKpi, afwijkingen:afwijkingen, mededelingen:mededelingen, blokkades:blokkades, eWegingen:eWegingen};
+
+  return {shiftRapport, shiftKpi, afwijkingen, mededelingen, blokkades, eWegingen};
 }
 // Verstuurt de payload naar de echte SharePoint-lijsten.
 // Schrijft eerst ShiftRapporten (geeft een ID terug), dan alle Afwijkingen/etc. met dat ShiftID.
