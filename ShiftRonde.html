@@ -2,7 +2,10 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>WML Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -12,16 +15,33 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        "primary": "#032416", "primary-container": "#1a3a2a", "on-primary": "#ffffff", "on-primary-container": "#82a48f",
-        "secondary": "#2c694e", "secondary-container": "#aeeecb", "on-secondary": "#ffffff", "on-secondary-container": "#316e52",
-        "surface": "#fdf9f3", "background": "#fdf9f3", "paper": "#FFFFFF",
-        "surface-container": "#f1ede7", "surface-container-low": "#f7f3ed", "surface-container-lowest": "#ffffff", "surface-container-high": "#ebe8e2",
-        "surface-variant": "#e6e2dc", "on-surface": "#1c1c18", "on-surface-variant": "#424843",
-        "border": "#E5E0D8", "outline": "#727973", "outline-variant": "#c1c8c2",
-        "muted": "#6B7280", "ink": "#1A1A1A",
+        // ── Biscuit International brand kleuren ──────────────────────────────
+        // Marine blauw  → primaire kleur (sidebar, topbar, dark surfaces)
+        // Goud          → accent kleur  (knoppen, actieve elementen, highlights)
+        // Escalatie/veiligheid-kleuren (rood/oranje/groen) zijn bewust NIET
+        // gewijzigd — dat zijn semantische signaal-kleuren, geen merkuiting.
+        // ─────────────────────────────────────────────────────────────────────
+        "primary":            "#1C2D4A",   // Marine blauw — BI donker
+        "primary-container":  "#152238",   // Iets donkerder voor hover/depth
+        "on-primary":         "#ffffff",
+        "on-primary-container": "#8A9BB8", // Lichtblauwgrijs op marine bg
+        "secondary":          "#B8963A",   // Goud — BI accent
+        "secondary-container":"#F4E5B2",   // Lichtgoud voor actieve nav/bg
+        "on-secondary":       "#ffffff",   // Wit op goud (donker genoeg)
+        "on-secondary-container": "#6B5010", // Donkergoud op lichtgoud
+        // Oppervlakken — warm crème past bij het warme goud palet
+        "surface": "#FDFAF4", "background": "#FDFAF4", "paper": "#FFFFFF",
+        "surface-container":       "#F5F0E8",
+        "surface-container-low":   "#FAF6EE",
+        "surface-container-lowest":"#FFFFFF",
+        "surface-container-high":  "#EDE7DC",
+        "surface-variant": "#E8E2D8", "on-surface": "#1A1A18", "on-surface-variant": "#42413C",
+        "border": "#DDD8CE", "outline": "#7A7568", "outline-variant": "#C2BCB0",
+        "muted": "#6B6860", "ink": "#1A1A18",
+        // Veiligheidskleuren — ongewijzigd (semantisch, geen merkkleur)
         "danger": "#C0392B", "danger-pale": "#FDECEA",
         "warning": "#D97706", "warning-pale": "#FEF3C7",
-        "success-pale": "#D8F3DC", "info": "#1D4ED8", "info-pale": "#DBEAFE",
+        "success-pale": "#E8F5E9", "info": "#1D4ED8", "info-pale": "#DBEAFE",
         "note": "#6D28D9", "note-pale": "#EDE9FE"
       },
       spacing: { "gutter-desktop": "24px", "gutter-mobile": "12px", "grid-gap": "16px", "card-padding": "14px 18px", "modal-padding": "18px 20px" },
@@ -39,33 +59,73 @@ tailwind.config = {
 </script>
 <style>
   .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; font-size:20px; }
-  body{ font-family:'IBM Plex Sans',sans-serif; background:#fdf9f3; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:#FDFAF4; }
   .font-mono-num{ font-family:'IBM Plex Mono',monospace; }
-  .dashed-slot{ border:1.5px dashed #E5E0D8; transition:all .2s; }
-  .dashed-slot:hover{ border-color:#2c694e; background:#f7f3ed; }
+  .dashed-slot{ border:1.5px dashed #DDD8CE; transition:all .2s; }
+  .dashed-slot:hover{ border-color:#B8963A; background:#FAF6EE; }
   .page{ display:none; }
   .page.active{ display:block; }
-  .navlink.active{ background:#aeeecb; color:#316e52; font-weight:700; }
-  .navlink-mobile.active{ color:#2c694e; }
-  .afd-toggle.active{ background:#2c694e; color:#fff; }
-  .modal-overlay{ background:rgba(26,26,26,.65); backdrop-filter:blur(3px); display:none; position:fixed; inset:0; z-index:100; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto; }
+  /* Actieve navigatie: lichtgoud achtergrond + donkergoud tekst (BI brand) */
+  .navlink.active{ background:#F4E5B2; color:#6B5010; font-weight:700; }
+  .navlink-mobile.active{ color:#B8963A; }
+  .afd-toggle.active{ background:#B8963A; color:#fff; }
+  .modal-overlay{ background:rgba(26,26,24,.65); backdrop-filter:blur(3px); display:none; position:fixed; inset:0; z-index:100; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto; }
   .modal-overlay.open{ display:flex; }
   .locked-hint{ opacity:.45; pointer-events:none; filter:grayscale(.3); }
   .status-pill{ font-family:'IBM Plex Mono',monospace; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
-  .status-Concept{ background:#e6e2dc; color:#1c1c18; }
-  .status-Overgedragen{ background:#D8F3DC; color:#2c694e; }
-  .status-Afgesloten{ background:#D8F3DC; color:#2c694e; }
+  .status-Concept{ background:#E8E2D8; color:#1A1A18; }
+  /* Overgedragen/Afgesloten: goud-gebaseerd (BI brand, positief signaal) */
+  .status-Overgedragen{ background:#F4E5B2; color:#6B5010; }
+  .status-Afgesloten{ background:#F4E5B2; color:#6B5010; }
+  /* Escalatie-klassen: semantisch, ongewijzigd */
   .escalatie-badge{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.03em; display:inline-block; }
   .escalatie-Kritiek{ background:#C0392B; color:#fff; }
   .escalatie-Aandachtspunt{ background:#FEF3C7; color:#92400E; }
-  .escalatie-Routinematig{ background:#e6e2dc; color:#6B7280; }
+  .escalatie-Routinematig{ background:#E8E2D8; color:#6B6860; }
   .prioriteit-Hoog{ background:#C0392B; color:#fff; }
   .prioriteit-Midden{ background:#FEF3C7; color:#92400E; }
-  .prioriteit-Laag{ background:#e6e2dc; color:#6B7280; }
+  .prioriteit-Laag{ background:#E8E2D8; color:#6B6860; }
   .mededeling-tag{ font-size:9.5px; font-weight:700; color:#6D28D9; background:#EDE9FE; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.03em; display:inline-block; }
   .qa-badge{ font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px; background:#EDE9FE; color:#6D28D9; }
   .tab-count{ background:#C0392B; color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; min-width:16px; text-align:center; display:inline-block; }
-  .tab-count.zero{ background:#e6e2dc; color:#6B7280; }
+  .tab-count.zero{ background:#E8E2D8; color:#6B6860; }
+  /* Prioriteit-badge (gebruikt in blokkade/QA-cards) */
+  .prioriteit-badge{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.03em; display:inline-block; }
+  /* ── Responsive & touch fixes ─────────────────────────────────────────── */
+
+  /* Minimale aanraakdoelhoogte 44px op mobiel (Apple HIG / Google Material) */
+  @media (max-width: 768px) {
+    button, select, input[type="file"] + label { min-height: 44px; }
+    /* Uitzonderingen: icon-only knoppen in lijstkaarten (edit/delete icoon) */
+    .icon-btn { min-height: unset; }
+  }
+
+  /* Notch/safe-area voor iPhone X+ en moderne Androids */
+  .sticky-footer-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  nav.bottom-nav-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* Zachte scroll overal */
+  html { scroll-behavior: smooth; }
+
+  /* Voorkom dat iOS tekst vergroot bij landscape-rotatie */
+  body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+  /* KPI-reden dropdowns in de modal: vergroot op mobiel */
+  @media (max-width: 640px) {
+    #nf-kpi-wrap select { font-size: 12px; padding-top: 6px; padding-bottom: 6px; }
+    #nf-kpi-wrap .grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* Schoonmaak/5S knoppen per lijn: hogere touch-target op mobiel */
+  @media (max-width: 640px) {
+    .schoonmaak-btn { min-height: 40px; font-size: 11px; }
+  }
+
+  /* Tijdlijn op smal scherm: compacter maar leesbaar */
+  @media (max-width: 480px) {
+    #shift-tijdlijn .font-mono-num { font-size: 11px; }
+  }
+  /* ─────────────────────────────────────────────────────────────────────── */
   ::-webkit-scrollbar{ width:7px; height:7px; }
   ::-webkit-scrollbar-track{ background:#f1ede7; }
   ::-webkit-scrollbar-thumb{ background:#c1c8c2; border-radius:4px; }
@@ -73,9 +133,9 @@ tailwind.config = {
 </head>
 <body class="bg-background text-on-surface">
 
-<div id="demo-banner" class="bg-primary text-white text-center text-[11px] py-1.5 px-3">
-  <b>WML Shift Rapportage</b> — Gehost op GitHub Pages · Data via Power Automate → SharePoint. 
-  Vul de Flow-URLs in via <b>Configuratie → Verbinding</b> na het publiceren van de flows.
+<div id="demo-banner" class="text-white text-center text-[11px] py-1.5 px-3" style="background:#1C2D4A">
+  <b>WML Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
+  Vul de Flow-URLs in via <b>Configuratie → Verbinding</b>.
 </div>
 
 <div id="sp-status" class="bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2" style="display:none">
@@ -91,8 +151,11 @@ tailwind.config = {
   <!-- SideNavBar (desktop) -->
   <aside class="hidden md:flex flex-col h-full py-4 px-3 gap-y-2 bg-surface-container border-r border-border w-64 shrink-0">
     <div class="mb-2 px-3 flex items-center gap-2">
-      <div class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold text-[12px] font-mono-num">WML</div>
-      <span class="text-label-ui uppercase tracking-widest text-muted">Production</span>
+      <div class="w-8 h-8 rounded-lg bg-secondary text-on-secondary flex items-center justify-center font-bold text-[11px] font-mono-num tracking-wide">BI</div>
+      <div class="min-w-0">
+        <p class="text-label-ui uppercase tracking-widest text-muted leading-tight">Shift</p>
+        <p class="text-[9px] text-muted/70 uppercase tracking-widest leading-tight">Rapportage</p>
+      </div>
     </div>
 
     <div class="px-3 mb-2">
@@ -150,14 +213,14 @@ tailwind.config = {
     <!-- TopNavBar -->
     <header class="flex justify-between items-center w-full px-gutter-mobile md:px-gutter-desktop h-14 bg-primary text-on-primary shrink-0">
       <div class="flex items-center gap-3 md:hidden">
-        <div class="w-7 h-7 rounded bg-white/15 flex items-center justify-center font-bold text-[11px] font-mono-num">WML</div>
+        <div class="w-7 h-7 rounded bg-secondary text-on-secondary flex items-center justify-center font-bold text-[10px] font-mono-num">BI</div>
         <span class="text-section-header font-bold" id="mobile-page-title">Huidige Shift</span>
       </div>
       <div class="hidden md:block text-label-ui opacity-80" id="desktop-page-title">Huidige Shift — <span id="desktop-page-afdeling">Productie</span></div>
       <div class="flex items-center gap-3">
         <span class="material-symbols-outlined opacity-80 cursor-pointer" title="Notificaties (decoratief)">notifications</span>
         <span class="material-symbols-outlined opacity-80 cursor-pointer" title="Help (decoratief)">help</span>
-        <div class="md:hidden w-7 h-7 rounded-full bg-secondary flex items-center justify-center font-bold text-[10px]" id="tb-user-avatar-mobile">?</div>
+        <div class="md:hidden w-9 h-9 rounded-full bg-secondary flex items-center justify-center font-bold text-[11px] cursor-pointer active:opacity-70 transition-opacity" id="tb-user-avatar-mobile" onclick="vraagUitloggen()" title="Uitloggen / naam wijzigen">?</div>
       </div>
     </header>
 
@@ -402,22 +465,22 @@ tailwind.config = {
           <div class="bg-surface-container p-2.5 rounded border border-border">
             <span class="text-micro-caption text-muted block mb-1">Waste (KG)</span>
             <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-waste" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-waste-reden"></select>
+            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-waste-reden"></select>
           </div>
           <div class="bg-surface-container p-2.5 rounded border border-border">
             <span class="text-micro-caption text-muted block mb-1">Rework (KG)</span>
             <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-rework" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-rework-reden"></select>
+            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-rework-reden"></select>
           </div>
           <div class="bg-surface-container p-2.5 rounded border border-border">
             <span class="text-micro-caption text-muted block mb-1">Stilstand (min)</span>
             <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-stilstand" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-stilstand-reden"></select>
+            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-stilstand-reden"></select>
           </div>
           <div class="bg-surface-container p-2.5 rounded border border-border">
             <span class="text-micro-caption text-muted block mb-1">Extra werk (min)</span>
             <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-extrawerk" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-extrawerk-reden"></select>
+            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-extrawerk-reden"></select>
           </div>
         </div>
       </div>
@@ -689,7 +752,7 @@ tailwind.config = {
 <!-- Sticky footer — alleen zichtbaar op Huidige Shift (zie switchPage). Boven de mobiele bottom-nav,
      naast de sidebar op desktop. Bevat dezelfde handleOverdracht()-validatie als voorheen — alleen de
      knop is verplaatst, de logica (lege-shift-waarschuwing, CCP/Gemba-vinkjes) is ongewijzigd. -->
-<div class="fixed left-0 md:left-64 right-0 bottom-16 md:bottom-0 z-40 bg-paper border-t border-border shadow-lg px-gutter-mobile md:px-gutter-desktop py-3 flex items-center justify-between gap-3" id="shift-sticky-footer" style="display:none">
+<div class="fixed left-0 md:left-64 right-0 bottom-16 md:bottom-0 z-40 bg-paper border-t border-border shadow-lg px-gutter-mobile md:px-gutter-desktop py-3 flex items-center justify-between gap-3 sticky-footer-safe" id="shift-sticky-footer" style="display:none">
   <div class="min-w-0">
     <p class="text-label-ui font-bold truncate" id="footer-afdeling-label">Productie</p>
     <p class="text-micro-caption text-muted" id="footer-status-label">Concept</p>
@@ -697,8 +760,46 @@ tailwind.config = {
   <div id="footer-overdracht-actions" class="shrink-0"></div>
 </div>
 
+<!-- Login-overlay — toont als INGELOGD null is. Valideert naam tegen ShiftConfig via Flow 4. -->
+<div id="login-overlay" class="fixed inset-0 z-[200] flex items-center justify-center p-6" style="background:rgba(28,45,74,0.92); backdrop-filter:blur(4px); display:none !important;">
+  <div class="bg-paper rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div class="px-8 pt-8 pb-6 text-center" style="background:#1C2D4A">
+      <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center text-xl font-bold font-mono-num" style="background:#B8963A; color:#fff">BI</div>
+      <h1 class="text-white text-xl font-bold">WML Shift Rapportage</h1>
+      <p class="text-white/60 text-xs mt-1">Biscuit International — Broek op Langedijk</p>
+    </div>
+    <div class="p-8 space-y-4">
+      <div class="space-y-1.5">
+        <label class="text-metadata-caps text-muted uppercase block">Jouw naam</label>
+        <input id="login-naam-input"
+          class="w-full border-2 border-border rounded-xl px-4 py-3 text-sm focus:border-secondary focus:ring-0 outline-none transition-colors bg-surface-container-low"
+          type="text" placeholder="Voer je naam in..."
+          autocomplete="name" autocorrect="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter') loginVersturen()">
+      </div>
+      <div id="login-fout" class="hidden bg-danger-pale border border-danger text-danger rounded-xl px-4 py-3 text-sm flex items-start gap-2">
+        <span class="material-symbols-outlined text-[18px] shrink-0 mt-0.5">person_off</span>
+        <span id="login-fout-tekst">Naam niet gevonden.</span>
+      </div>
+      <div id="login-laden" class="hidden text-center py-2">
+        <span class="material-symbols-outlined animate-spin text-secondary">autorenew</span>
+        <p class="text-sm text-muted mt-1">Naam controleren...</p>
+      </div>
+      <button onclick="loginVersturen()"
+        class="w-full py-3 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-90 active:opacity-75"
+        style="background:#B8963A" id="login-knop">
+        Inloggen
+      </button>
+      <p class="text-center text-micro-caption text-muted">
+        Naam niet bekend? Neem contact op met de beheerder.<br>
+        Toegang wordt gecontroleerd via de ShiftConfig-lijst.
+      </p>
+    </div>
+  </div>
+</div>
+
 <!-- BottomNavBar (mobile only) -->
-<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 grid grid-cols-5 items-center h-16 bg-paper border-t border-border shadow-lg">
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 grid grid-cols-5 items-center h-16 bg-paper border-t border-border shadow-lg bottom-nav-safe">
   <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5" onclick="switchPage('shift')" id="navmobile-shift">
     <span class="material-symbols-outlined">assignment_turned_in</span><span class="text-micro-caption">Shift</span>
   </button>
@@ -753,7 +854,7 @@ const CONFIG = {
   // Schoonmaak/5S-statusopties bij overdracht — config-driven (SharePoint Config-lijst in productie),
   // niet hardcoded in de render-functie.
   schoonmaakStatussen: [
-    {code:'Groen', kleur:'#2c694e', label:'Goed'},
+    {code:'Groen', kleur:'#2E7D32', label:'Goed'},
     {code:'Oranje', kleur:'#D97706', label:'Matig'},
     {code:'Rood', kleur:'#C0392B', label:'Slecht'}
   ]
@@ -767,47 +868,259 @@ const CONFIG = {
 
 const FLOW_URLS = {
   // Flow 1: ontvangt de volledige shift-payload bij Overdracht
-  // Power Automate-actienaam: "WML – Shift Overdracht Ontvangen"
   overdracht: '',
-
-  // Flow 2 (toekomst): haal open Dagoverleg-items op
+  // Flow 2: haalt open dagoverleg-items op uit SharePoint
   getDagoverleg: '',
-
-  // Flow 3 (toekomst): haal vorige shift op voor een afdeling
-  getVorigeShift: ''
+  // Flow 3: haalt de meest recente overgedragen shift op
+  getVorigeShift: '',
+  // Flow 4: valideert een naam tegen de ShiftConfig Gebruikers-lijst
+  // Geeft {gevonden, naam, rol, afdeling} terug — of {gevonden: false}
+  validateUser: ''
 };
 
-// Login zonder SharePoint-context: naam wordt ingevoerd via een eenvoudig dialoogvenster
-// bij het eerste gebruik. Opgeslagen in localStorage zodat je het niet elke keer opnieuw
-// hoeft in te voeren. In een latere fase vervangen door Azure AD SSO (MSAL.js).
 let INGELOGD = null;
 
-function initialiseerLogin(){
-  const opgeslagen = localStorage.getItem('wml_gebruiker');
-  if(opgeslagen){
-    try { INGELOGD = JSON.parse(opgeslagen); }
-    catch(e){ INGELOGD = null; }
-  }
-  if(!INGELOGD || !INGELOGD.naam){
-    const naam = prompt('Voer je naam in om in te loggen:\n(Dit wordt opgeslagen als je naam bij shift-overdracht)');
-    if(!naam || !naam.trim()){
-      // Naam geweigerd of leeg: offline demo-modus
-      INGELOGD = {naam:'Demo gebruiker', rol:'Teamleider', offline:true};
-    } else {
-      INGELOGD = {naam: naam.trim(), rol:'Teamleider', offline:false};
-      localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
-    }
-  }
-  renderTopbarLogin();
-  renderHuidigeShift();
-  console.info('Ingelogd als:', INGELOGD.naam);
+// ── LOGIN VIA SHIFTCONFIG ──────────────────────────────────────────────────
+// Stap 1: toon de login-overlay als er nog geen geldige sessie is.
+// Stap 2: gebruiker typt naam → app roept Flow 4 aan.
+// Stap 3: Flow 4 controleert naam in ShiftConfig (ConfigType = Gebruiker).
+//         Gevonden  → inloggen, sessie opslaan in localStorage.
+//         Niet gevonden → foutmelding, app blijft geblokkeerd.
+// Als Flow 4 niet ingesteld is → fallback: naam wordt geaccepteerd zonder
+//   validatie (offline/demo-modus), met een duidelijke waarschuwing.
+// ──────────────────────────────────────────────────────────────────────────
+
+function toonLoginOverlay(){
+  const el = document.getElementById('login-overlay');
+  if(el){ el.style.cssText = ''; el.style.display = 'flex'; }
+  setTimeout(function(){
+    const input = document.getElementById('login-naam-input');
+    if(input) input.focus();
+  }, 100);
+}
+function verbergLoginOverlay(){
+  const el = document.getElementById('login-overlay');
+  if(el) el.style.display = 'none';
 }
 
-// Uitloggen: naam wissen en pagina herladen
+async function loginVersturen(){
+  const input = document.getElementById('login-naam-input');
+  const naam = (input ? input.value : '').trim();
+  if(!naam){
+    toonLoginFout('Vul je naam in om in te loggen.');
+    return;
+  }
+  verbergLoginFout();
+  toonLoginLaden(true);
+
+  // Als Flow 4 nog niet ingesteld is: waarschuw maar laat toch toe (demo-modus)
+  if(!FLOW_URLS.validateUser){
+    console.warn('Flow 4 (validateUser) nog niet ingesteld — naam geaccepteerd zonder ShiftConfig-validatie.');
+    volledigInloggen({naam: naam, rol: 'Teamleider', afdeling: '', offline: true});
+    return;
+  }
+
+  try {
+    const resp = await fetch(FLOW_URLS.validateUser, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ naam: naam })
+    });
+
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    if(data.gevonden){
+      volledigInloggen({
+        naam:      data.naam      || naam,
+        rol:       data.rol       || 'Teamleider',
+        afdeling:  data.afdeling  || '',
+        offline:   false
+      });
+    } else {
+      toonLoginFout(
+        '"' + naam + '" is niet gevonden in de gebruikerslijst. ' +
+        'Controleer je naam of neem contact op met de beheerder.'
+      );
+    }
+  } catch(e) {
+    console.error('Flow 4 fout:', e);
+    toonLoginFout(
+      'Kan de gebruikerslijst niet bereiken (' + e.message + '). ' +
+      'Controleer je internetverbinding of de Flow 4-URL in Configuratie → Verbinding.'
+    );
+  } finally {
+    toonLoginLaden(false);
+  }
+}
+
+// ── AUTO-UITLOGGEN NA 10 MINUTEN INACTIVITEIT ─────────────────────────────
+// Timer wordt gereset bij elke aanraking/klik/toetsaanslag.
+// Bij auto-uitloggen: formState wordt bewaard per gebruiker (zonder foto's
+// vanwege localStorage-grootte). Zelfde gebruiker die herlogt krijgt data terug.
+// Andere gebruiker op hetzelfde apparaat begint altijd opnieuw.
+// ─────────────────────────────────────────────────────────────────────────────
+const AUTO_UITLOG_MS   = 10 * 60 * 1000; // 10 minuten
+const WAARSCHUWING_MS  =  9 * 60 * 1000; // waarschuwing bij 9 minuten
+let autoUitlogTimer     = null;
+let autoUitlogWaarschuwing = null;
+
+function resetAutoUitlogTimer(){
+  if(!INGELOGD) return;
+  clearTimeout(autoUitlogTimer);
+  clearTimeout(autoUitlogWaarschuwing);
+  autoUitlogWaarschuwing = setTimeout(function(){
+    toonToast('⏱ Nog 1 minuut actief — daarna automatisch uitgelogd.');
+  }, WAARSCHUWING_MS);
+  autoUitlogTimer = setTimeout(autoUitloggen, AUTO_UITLOG_MS);
+}
+
+function stopAutoUitlogTimer(){
+  clearTimeout(autoUitlogTimer);
+  clearTimeout(autoUitlogWaarschuwing);
+}
+
+function autoUitloggen(){
+  if(!INGELOGD) return;
+  console.info('Auto-uitloggen na 10 min inactiviteit — gebruiker:', INGELOGD.naam);
+  slaShiftDataOp(); // bewaar data vóór uitloggen
+  INGELOGD = null;
+  stopAutoUitlogTimer();
+  // Leeg loginscherm — geen voorinvulling
+  const input = document.getElementById('login-naam-input');
+  if(input) input.value = '';
+  verbergLoginFout();
+  toonLoginOverlay();
+  toonToast('Automatisch uitgelogd na 10 minuten inactiviteit.');
+}
+
+// Kleine toast-melding (verdwijnt na 4 seconden)
+function toonToast(tekst){
+  let toast = document.getElementById('app-toast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1C2D4A;color:#fff;padding:10px 20px;border-radius:20px;font-size:12px;font-weight:600;z-index:300;transition:opacity .3s;white-space:nowrap;max-width:90vw;text-align:center;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = tekst;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(function(){ toast.style.opacity = '0'; }, 4000);
+}
+
+// ── FORMSTATE OPSLAAN & HERSTELLEN ────────────────────────────────────────
+// Bewaar per gebruiker (sleutel = naam, lowercase).
+// Foto's worden NIET bewaard (base64 is te groot voor localStorage 5MB-limiet).
+// Data ouder dan vandaag wordt genegeerd — per shift een schone lei.
+// ─────────────────────────────────────────────────────────────────────────────
+function slaShiftDataOp(){
+  if(!INGELOGD || !INGELOGD.naam) return;
+  try {
+    // Diepe kopie zonder foto's
+    const kopie = JSON.parse(JSON.stringify(formState));
+    ['Productie','Inpak'].forEach(function(afd){
+      if(!kopie[afd]) return;
+      (kopie[afd].veiligheid  || []).forEach(function(v){ v.foto = null; });
+      (kopie[afd].blokkades   || []).forEach(function(b){ b.foto = null; });
+    });
+    const pakket = {
+      data:        kopie,
+      naam:        INGELOGD.naam,
+      datum:       vandaagISO(),
+      opgeslagenOp: new Date().toISOString()
+    };
+    localStorage.setItem('wml_data_' + INGELOGD.naam.toLowerCase(), JSON.stringify(pakket));
+  } catch(e){
+    console.warn('Shift-data opslaan mislukt (localStorage vol?):', e);
+  }
+}
+
+function herstelShiftData(naam){
+  try {
+    const raw = localStorage.getItem('wml_data_' + naam.toLowerCase());
+    if(!raw) return false;
+    const pakket = JSON.parse(raw);
+    // Alleen data van vandaag herstellen
+    if(pakket.datum !== vandaagISO()){
+      localStorage.removeItem('wml_data_' + naam.toLowerCase());
+      console.info('Shift-data verouderd (andere dag) — verwijderd.');
+      return false;
+    }
+    // Data herstellen in formState
+    Object.assign(formState, pakket.data);
+    console.info('Shift-data hersteld voor', naam, '— opgeslagen om', pakket.opgeslagenOp);
+    return true;
+  } catch(e){
+    console.warn('Shift-data herstellen mislukt:', e);
+    return false;
+  }
+}
+
+// Automatisch opslaan na elke render van de Huidige Shift-pagina
+// (wordt aangeroepen vanuit renderHuidigeShift, zie verderop)
+function autoSaveNaRender(){ slaShiftDataOp(); }
+
+// ── LOGIN FUNCTIES ─────────────────────────────────────────────────────────
+function volledigInloggen(gebruiker){
+  INGELOGD = gebruiker;
+  localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
+
+  // Probeer data van dezelfde gebruiker te herstellen
+  const hersteld = herstelShiftData(gebruiker.naam);
+
+  verbergLoginOverlay();
+  renderTopbarLogin();
+  renderHuidigeShift();
+
+  // Start de 10-minuten inactiviteits-timer
+  resetAutoUitlogTimer();
+
+  if(hersteld){
+    toonToast('✓ Je shift-data van vandaag is hersteld.');
+  }
+  console.info('Ingelogd als:', INGELOGD.naam, '—', INGELOGD.offline ? '(offline/demo)' : '(gevalideerd via ShiftConfig)');
+}
+
+function toonLoginFout(tekst){
+  document.getElementById('login-fout-tekst').textContent = tekst;
+  document.getElementById('login-fout').classList.remove('hidden');
+}
+function verbergLoginFout(){
+  document.getElementById('login-fout').classList.add('hidden');
+}
+function toonLoginLaden(actief){
+  document.getElementById('login-laden').classList.toggle('hidden', !actief);
+  document.getElementById('login-knop').disabled = actief;
+  document.getElementById('login-knop').style.opacity = actief ? '0.5' : '1';
+}
+
+function initialiseerLogin(){
+  // Altijd loginscherm tonen — nooit automatisch inloggen (gedeelde apparaten).
+  // GEEN naam voorinvullen — elk apparaat begint neutraal.
+  stopAutoUitlogTimer();
+  toonLoginOverlay();
+}
+
 function uitloggen(){
+  slaShiftDataOp(); // data bewaren vóór uitloggen
+  stopAutoUitlogTimer();
   localStorage.removeItem('wml_gebruiker');
   INGELOGD = null;
-  location.reload();
+  // Leeg loginscherm — geen naam voorinvullen
+  const input = document.getElementById('login-naam-input');
+  if(input) input.value = '';
+  verbergLoginFout();
+  toonLoginOverlay();
+}
+
+function vraagUitloggen(){
+  if(!INGELOGD) return;
+  openAftekenen(
+    'Uitloggen',
+    'Wil je uitloggen als ' + INGELOGD.naam + '? Je shift-data wordt bewaard en is beschikbaar als je vandaag opnieuw inlogt.',
+    function(){ uitloggen(); }
+  );
 }
 
 function renderTopbarLogin(){
@@ -889,7 +1202,7 @@ function escalatieKlasse(dagen){
   if(dagen<=3) return CONFIG.escalatie[2];
   return CONFIG.escalatie[3];
 }
-function statusKleur(s){ return s==='Open' ? '#C0392B' : s==='In behandeling' ? '#D97706' : '#2c694e'; }
+function statusKleur(s){ return s==='Open' ? '#C0392B' : s==='In behandeling' ? '#D97706' : '#B8963A'; }
 
 // ============ PAGINA / NAVIGATIE ============
 function switchPage(page){
@@ -1045,9 +1358,9 @@ function renderDagoverlegUI(open, actieveBlokkades){
       html += '<div class="bg-paper border border-border rounded-lg p-3 mb-2 flex flex-wrap items-center gap-3 border-l-4'+(isKritiek?' bg-danger-pale':'')+'" style="border-left-color:'+kleur+(isKritiek?';animation:pulse 1.8s ease-in-out infinite':'')+'">'
         + '<div class="flex-1 min-w-[200px]"><p class="text-sm font-bold flex items-center gap-2 flex-wrap">'+(isKritiek?'<span class="escalatie-badge prioriteit-Hoog">Kritiek</span>':'')+esc(v.titel)+'</p>'
         + '<p class="text-xs text-muted mt-0.5">'+v.afdeling+' · '+v.lijn+(!isKritiek?' <span class="escalatie-badge prioriteit-'+v.prioriteit+'">'+v.prioriteit+'</span>':'')+'</p></div>'
-        + '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded text-white" style="background:'+statusKleur(v.status)+'">'+v.status+'</span>'
-        + '<span class="font-mono-num text-[11px] font-bold px-2.5 py-1 rounded" style="background:'+kleur+'22;color:'+kleur+'">'+dagenLabel+'</span>'
-        + '<button class="text-secondary text-xs font-bold hover:underline" onclick="handleAfronden(\''+v.id+'\',\''+route.code+'\')">Afronden</button></div>';
+        + '<span class="text-[10px] font-bold uppercase px-2 py-1.5 rounded text-white" style="background:'+statusKleur(v.status)+'">'+v.status+'</span>'
+        + '<span class="font-mono-num text-[11px] font-bold px-2.5 py-1.5 rounded" style="background:'+kleur+'22;color:'+kleur+'">'+dagenLabel+'</span>'
+        + '<button class="text-secondary text-sm font-bold hover:underline active:opacity-70 min-h-[44px] px-2" onclick="handleAfronden(\''+v.id+'\',\''+route.code+'\')">Afronden</button></div>';
     });
     html += '</div>';
   });
@@ -1110,6 +1423,8 @@ function renderHuidigeShift(){
   const afdeling = huidigeAfdeling;
   const shift = formState[afdeling];
   shift.teamleider = INGELOGD ? INGELOGD.naam : '';
+  // Auto-save na elke render zodat data behouden blijft bij auto-uitloggen
+  setTimeout(autoSaveNaRender, 0);
 
   document.getElementById('shift-datum').textContent = formatDatumNL(shift.datum);
   document.getElementById('shift-shift').textContent = shift.shift;
@@ -1141,7 +1456,7 @@ function renderHuidigeShift(){
     const huidigeStatus = shift.lijnen[lijn].schoonmaakStatus;
     const statusKnoppen = CONFIG.schoonmaakStatussen.map(function(s){
       const actief = huidigeStatus===s.code;
-      return '<button class="flex-1 py-1.5 rounded text-[10px] font-bold uppercase border transition-colors" style="'+(actief?'background:'+s.kleur+';color:#fff;border-color:'+s.kleur:'border-color:var(--border, #E5E0D8);color:'+s.kleur)+'" onclick="setSchoonmaakStatus(\''+afdeling+'\',\''+lijn+'\',\''+s.code+'\')">'+s.label+'</button>';
+      return '<button class="flex-1 py-2.5 rounded-lg text-xs font-bold uppercase border transition-colors schoonmaak-btn" style="'+(actief?'background:'+s.kleur+';color:#fff;border-color:'+s.kleur:'border-color:var(--border, #E5E0D8);color:'+s.kleur)+'" onclick="setSchoonmaakStatus(\''+afdeling+'\',\''+lijn+'\',\''+s.code+'\')">'+s.label+'</button>';
     }).join('');
     const items = afw.map(function(a, idx){
       const chips = [];
@@ -1594,19 +1909,37 @@ function renderKpiDashboard(){
 
   html += '<section class="bg-paper rounded-lg border border-border shadow-sm overflow-hidden">'
     + '<div class="p-card-padding border-b border-border bg-surface-container-low"><h3 class="text-section-header text-primary">Lijnvergelijking</h3></div>'
-    + '<div class="overflow-x-auto"><table class="w-full text-left border-collapse">'
+    // Desktop: tabel — mobiel: cards (tabel scrolt slecht op 375px breed)
+    + '<div class="hidden md:block overflow-x-auto"><table class="w-full text-left border-collapse">'
     + '<thead><tr class="bg-surface-container text-metadata-caps text-muted uppercase">'
     + '<th class="px-4 py-2.5">Lijn</th><th class="px-4 py-2.5">Afdeling</th><th class="px-4 py-2.5">Waste</th><th class="px-4 py-2.5">Rework</th><th class="px-4 py-2.5">Stilstand</th><th class="px-4 py-2.5">Afwijkingen</th><th class="px-4 py-2.5 text-right">Status</th></tr></thead><tbody>'
     + perLijn.map(function(r){
         const statusLabel = r.kritiek>0 ? 'Kritiek' : (r.aantal>0 ? 'Actief' : 'Stabiel');
-        const statusCls = r.kritiek>0 ? 'bg-danger-pale text-danger animate-pulse' : (r.aantal>0 ? 'bg-info-pale text-info' : 'bg-success-pale text-secondary');
+        const statusCls = r.kritiek>0 ? 'bg-danger-pale text-danger' : (r.aantal>0 ? 'bg-info-pale text-info' : 'bg-success-pale text-secondary');
         return '<tr class="hover:bg-surface-container-low transition-colors border-b border-border last:border-0">'
           + '<td class="px-4 py-3 font-bold text-primary">'+r.lijn+'</td><td class="px-4 py-3 text-muted">'+r.afdeling+'</td>'
           + '<td class="px-4 py-3 font-mono-num">'+r.waste+'kg</td><td class="px-4 py-3 font-mono-num">'+r.rework+'kg</td><td class="px-4 py-3 font-mono-num">'+r.stilstand+'min</td>'
-          + '<td class="px-4 py-3 font-mono-num">'+r.aantal+(r.kritiek?' <span class="text-danger">('+r.kritiek+' kritiek)</span>':'')+'</td>'
-          + '<td class="px-4 py-3 text-right"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase '+statusCls+'">'+statusLabel+'</span></td></tr>';
+          + '<td class="px-4 py-3 font-mono-num">'+r.aantal+(r.kritiek?' <span class="text-danger">('+r.kritiek+' krit.)</span>':'')+'</td>'
+          + '<td class="px-4 py-3 text-right"><span class="px-2 py-1 rounded-full text-xs font-bold uppercase '+statusCls+'">'+statusLabel+'</span></td></tr>';
       }).join('')
-    + '</tbody></table></div></section>';
+    + '</tbody></table></div>'
+    // Mobiel: cards per lijn
+    + '<div class="md:hidden divide-y divide-border">'
+    + perLijn.map(function(r){
+        const statusLabel = r.kritiek>0 ? 'Kritiek' : (r.aantal>0 ? 'Actief' : 'Stabiel');
+        const statusCls = r.kritiek>0 ? 'bg-danger-pale text-danger' : (r.aantal>0 ? 'bg-info-pale text-info' : 'bg-success-pale text-secondary');
+        return '<div class="p-4">'
+          + '<div class="flex justify-between items-center mb-2">'
+          +   '<div><p class="font-bold text-primary">'+r.lijn+'</p><p class="text-xs text-muted">'+r.afdeling+'</p></div>'
+          +   '<span class="px-2 py-1 rounded-full text-xs font-bold uppercase '+statusCls+'">'+statusLabel+'</span>'
+          + '</div>'
+          + '<div class="grid grid-cols-3 gap-2">'
+          +   '<div class="bg-surface-container-low rounded p-2 text-center"><p class="text-[10px] text-muted uppercase">Waste</p><p class="font-mono-num text-sm font-bold">'+r.waste+'<span class="text-muted font-normal text-[10px]">kg</span></p></div>'
+          +   '<div class="bg-surface-container-low rounded p-2 text-center"><p class="text-[10px] text-muted uppercase">Rework</p><p class="font-mono-num text-sm font-bold">'+r.rework+'<span class="text-muted font-normal text-[10px]">kg</span></p></div>'
+          +   '<div class="bg-surface-container-low rounded p-2 text-center"><p class="text-[10px] text-muted uppercase">Stilstand</p><p class="font-mono-num text-sm font-bold">'+r.stilstand+'<span class="text-muted font-normal text-[10px]">m</span></p></div>'
+          + '</div></div>';
+      }).join('')
+    + '</div></section>';
 
   document.getElementById('kpi-content').innerHTML = html;
 }
@@ -1644,8 +1977,8 @@ function renderWerkorders(){
         + '</div>'
         + downtimeBlok
         + (isLaatste
-            ? '<button class="w-full bg-surface-container text-muted py-1.5 rounded text-xs font-bold" disabled>✓ Opgelost — '+w.opgelostOp+'</button>'
-            : '<button class="w-full bg-secondary text-on-secondary py-1.5 rounded text-xs font-bold hover:opacity-90" onclick="handleWerkorderVolgende(\''+w.id+'\')">Volgende status → '+volgende+'</button>')
+            ? '<button class="w-full bg-surface-container text-muted py-3 rounded-lg text-sm font-bold" disabled>✓ Opgelost — '+w.opgelostOp+'</button>'
+            : '<button class="w-full bg-secondary text-on-secondary py-3 rounded-lg text-sm font-bold hover:opacity-90 active:opacity-75 transition-opacity" onclick="handleWerkorderVolgende(\''+w.id+'\')">→ '+volgende+'</button>')
         + '</div>';
     });
     html += '</div>';
@@ -1979,7 +2312,7 @@ function renderQaSectie(afdeling){
         + '</div>'
         + '<div class="flex flex-col items-end gap-1.5 shrink-0">'
         + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink" onclick="openBewerkBlokkade(\''+afdeling+'\','+idx+')">edit</span>'
-        + (actief ? '<button class="text-secondary text-[10px] font-bold hover:underline whitespace-nowrap" onclick="handleVrijgevenBlokkade(\''+afdeling+'\','+idx+')">✓ Vrijgeven</button>' : '')
+        + (actief ? '<button class="text-secondary text-sm font-bold hover:underline active:opacity-70 min-h-[44px] px-2 whitespace-nowrap" onclick="handleVrijgevenBlokkade(\''+afdeling+'\','+idx+')">✓ Vrijgeven</button>' : '')
         + '</div></div>'
     });
   });
@@ -2571,6 +2904,12 @@ function renderConfigVerbinding(){
     + '<p class="text-xs text-muted">Kopieer de HTTP POST-URL van elke Power Automate-flow en plak hem hieronder. '
     + 'Je vindt de URL na het publiceren van de flow via: <b>Trigger → "URL kopiëren"</b>. '
     + 'Opgeslagen in de browser (localStorage) — blijft staan na sluiten van de tab.</p>'
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 4 — Gebruiker valideren <span class="text-danger font-bold">(aanbevolen)</span></label>'
+    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
+    + 'id="cfg-flow-validate" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
+    + 'value="' + esc(FLOW_URLS.validateUser) + '" onchange="cfSlaFlowUrlOp(\'validateUser\',this.value)">'
+    + '<p class="text-micro-caption text-muted mt-0.5">Controleert naam tegen ShiftConfig (ConfigType = Gebruiker) bij elke login. Zonder deze URL wordt inloggen niet gevalideerd.</p></div>'
+
     + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 1 — Shift Overdracht (verplicht)</label>'
     + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
     + 'id="cfg-flow-overdracht" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
@@ -2622,7 +2961,7 @@ function renderConfigProductielijnen(){
   });
   html += '</div>';
   setTimeout(function(){ cfRenderLijnen(); }, 0);
-  return cfCard('Productielijnen', 'settings_input_component', '#2c694e', html);
+  return cfCard('Productielijnen', 'settings_input_component', '#1C2D4A', html);
 }
 function cfRenderLijnen(){
   ['Productie','Inpak'].forEach(function(afd){
@@ -2726,7 +3065,7 @@ function renderConfigSchoonmaakStatussen(){
     + '<button class="mt-2 text-xs text-secondary font-bold hover:underline flex items-center gap-1" onclick="cfVoeg5sToe()">'
     + '<span class="material-symbols-outlined text-[14px]">add_circle</span> Status toevoegen</button>';
   setTimeout(function(){ cfRender5s(); }, 0);
-  return cfCard('Schoonmaak / 5S-statussen', 'cleaning_services', '#2c694e', html);
+  return cfCard('Schoonmaak / 5S-statussen', 'cleaning_services', '#1C2D4A', html);
 }
 function cfRender5s(){
   const cont = document.getElementById('cfg-5s-lijst');
@@ -2759,7 +3098,7 @@ function renderConfigRondeInstellingen(){
     + '</div></div>'
     + '<p class="text-xs text-muted">Aanbeveling vanuit de Excel-analyse: soms 1, soms 2 genoteerd per shift. Stel in op basis van praktijk.</p>'
     + '</div>';
-  return cfCard('Ronde-instellingen', 'verified_user', '#2c694e', html);
+  return cfCard('Ronde-instellingen', 'verified_user', '#1C2D4A', html);
 }
 function cfUpdateRondeAantal(val){ const n=parseInt(val,10); if(n>=1) CONFIG.rondeVereistAantal=n; }
 
@@ -2899,6 +3238,12 @@ document.getElementById('shift-sticky-footer').style.display = 'flex';
 // Geen SharePoint-sessie of Azure AD nodig — werkt van elk domein incl. GitHub Pages.
 // Wordt later vervangen door MSAL.js SSO wanneer Azure AD-app-registratie klaar is.
 initialiseerLogin();
+
+// Reset de 10-minuten inactiviteits-timer bij elke gebruikersactie.
+// passive:true zodat touch-events het scrollen niet vertragen.
+['click','touchstart','keydown','scroll','pointerdown'].forEach(function(evt){
+  document.addEventListener(evt, resetAutoUitlogTimer, { passive: true });
+});
 </script>
 </body>
 </html>
