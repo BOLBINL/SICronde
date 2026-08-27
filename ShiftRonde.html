@@ -1374,12 +1374,137 @@ function bouwShiftDetailHtml(s){
     + (s.notificaties && s.notificaties.length ? '<div class="text-[10.5px] text-info mt-2">📧 '+s.notificaties.length+' notificatie(s) verstuurd bij overdracht (zie console)</div>' : '')
     + '</div>';
 }
-function openVorigeShiftModal(afdeling){
-  const log = GESCHIEDENIS[afdeling];
-  const s = log && log[0];
-  document.getElementById('shift-detail-titel').textContent = 'Vorige shift — '+afdeling;
-  document.getElementById('shift-detail-body').innerHTML = s ? bouwShiftDetailHtml(s) : '<p class="text-sm text-muted italic">Nog geen vorige shift overgedragen.</p>';
+// Converteert een SharePoint ShiftRapporten-item + Afwijkingen-array naar het interne
+// shift-snapshot-formaat dat bouwShiftDetailHtml() verwacht.
+function spResponseNaarShiftSnapshot(spShift, spAfwijkingen){
+  // Groepeer afwijkingen per lijn voor de lijnen-structuur
+  const lijnen = {};
+  CONFIG.productielijnen[spShift.Afdeling] && CONFIG.productielijnen[spShift.Afdeling].forEach(function(l){
+    lijnen[l] = {afwijkingen:[], schoonmaakStatus:null};
+  });
+
+  const veiligheid = [];
+  const blokkades  = [];
+  const eWegingen  = [];
+
+  (spAfwijkingen||[]).forEach(function(item){
+    const cat = item.Categorie || '';
+    if(cat === 'Blokkade'){
+      blokkades.push({
+        type:    item.BlokkadeType||'', artikel:item.Omschrijving||'',
+        batchTht:item.BatchTht||'',    hoeveelheid:item.Hoeveelheid||'',
+        locatie: item.Locatie||'',     status:item.BlokkadeStatus||'Actief'
+      });
+    } else if(cat === 'EWegingUitstoot'){
+      eWegingen.push({
+        lijn:item.Lijn||'', artikelBatch:item.Omschrijving||'',
+        tijdvak:item.Tijdvak||'', soortUitstoot:item.SoortUitstoot||'',
+        hoeveelheid:item.HoeveelheidUitstoot||0, actie:item.Correctief||''
+      });
+    } else if(cat === 'Planning'){
+      veiligheid.push({
+        categorie:'Planning', omschrijving:item.Omschrijving||'',
+        vervolgactie:item.Vervolgactie||'', escalatieniveau:null, prioriteit:null
+      });
+    } else if(['Veiligheid','Voedselveiligheid','LOTOTO / Werkvergunning'].indexOf(cat)!==-1){
+      veiligheid.push({
+        categorie:cat, omschrijving:item.Omschrijving||'',
+        impact:item.EffectImpact||'', oorzaak:item.Oorzaak||'',
+        correctief:item.Correctief||'', preventief:item.Preventief||'',
+        vervolgactie:item.Vervolgactie||'', prioriteit:item.Prioriteit||'',
+        escalatieniveau:item.EscalatieNiveau||'Routinematig',
+        vreemdVoorwerp:!!item.VreemdVoorwerp
+      });
+    } else {
+      // Productie-afwijking — voeg toe aan de juiste lijn
+      const lijn = item.Lijn || '';
+      if(!lijnen[lijn]) lijnen[lijn] = {afwijkingen:[], schoonmaakStatus:null};
+      lijnen[lijn].afwijkingen.push({
+        omschrijving:  item.Omschrijving||'',
+        impact:        item.EffectImpact||'',
+        oorzaak:       item.Oorzaak||'',
+        correctief:    item.Correctief||'',
+        preventief:    item.Preventief||'',
+        wasteKg:       item.WasteKg||0,
+        reworkKg:      item.ReworkKg||0,
+        stilstandMin:  item.StilstandMin||0,
+        extraWerkMin:  item.ExtraWerkMin||0,
+        escalatieniveau: item.EscalatieNiveau||'Routinematig',
+        vervolgactie:  item.Vervolgactie||'',
+        prioriteit:    item.Prioriteit||'Laag',
+        drempelOverschreden: !!item.DrempelOverschreden
+      });
+    }
+  });
+
+  // Ronde-momenten: waren opgeslagen als puntkomma-gescheiden string (join van de array bij overdracht)
+  const rondeMomenten = (spShift.RondeMomenten||'').split(';').filter(Boolean);
+
+  return {
+    datum:                  (spShift.Datum||'').split('T')[0],
+    shift:                  spShift.Shift||'',
+    teamleider:             spShift.Teamleider||'',
+    status:                 spShift.Status||'',
+    overgedragenDoor:       spShift.OvergedragenDoor||'',
+    overgedragenOp:         spShift.OvergedragenOp||'',
+    gembaAfgestemd:         !!spShift.GembaAfgestemd,
+    personeleBezetting:     spShift.PersoneleBezetting||'',
+    algemenePuntenDagoverleg: spShift.AlgemenePuntenDagoverleg||'',
+    actiesVolgendeShift:    spShift.ActiesVolgendeShift||'',
+    voorbereiding:          spShift.Voorbereiding||'',
+    rondeMomenten:          rondeMomenten,
+    rondeReden:             spShift.RondeReden||'',
+    lijnen:                 lijnen,
+    veiligheid:             veiligheid,
+    blokkades:              blokkades,
+    eWegingen:              eWegingen,
+    notificaties:           []
+  };
+}
+
+async function openVorigeShiftModal(afdeling){
+  document.getElementById('shift-detail-titel').textContent = 'Vorige shift — ' + afdeling;
+  document.getElementById('shift-detail-body').innerHTML =
+    '<p class="text-sm text-muted flex items-center gap-2">'
+    + '<span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>'
+    + ' Vorige shift ophalen uit SharePoint...</p>';
   openModal('modal-shift-detail');
+
+  // Probeer eerst SharePoint via Flow 3
+  if(FLOW_URLS.getVorigeShift){
+    try {
+      const resp = await fetch(FLOW_URLS.getVorigeShift, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ afdeling: afdeling })
+      });
+      if(resp.ok){
+        const data = await resp.json();
+        if(data.shift){
+          const snapshot = spResponseNaarShiftSnapshot(data.shift, data.afwijkingen || []);
+          document.getElementById('shift-detail-body').innerHTML = bouwShiftDetailHtml(snapshot);
+          return;
+        } else {
+          document.getElementById('shift-detail-body').innerHTML =
+            '<p class="text-sm text-muted italic">Nog geen overgedragen shift gevonden voor ' + afdeling + ' in SharePoint.</p>';
+          return;
+        }
+      }
+    } catch(e){
+      console.warn('Flow 3 niet bereikbaar — gebruik in-memory fallback:', e.message);
+    }
+  }
+
+  // Fallback: in-memory GESCHIEDENIS (shiften die in deze sessie zijn overgedragen)
+  const log = GESCHIEDENIS[afdeling];
+  const s   = log && log[0];
+  document.getElementById('shift-detail-body').innerHTML = s
+    ? bouwShiftDetailHtml(s)
+    : '<p class="text-sm text-muted italic">Nog geen vorige shift overgedragen.'
+      + (!FLOW_URLS.getVorigeShift
+        ? ' Stel Flow 3 in via <b>Configuratie → Verbinding</b> om historische shifts uit SharePoint te laden.'
+        : '')
+      + '</p>';
 }
 function openArchiefDetail(idx){
   const r = ARCHIEF[idx];
@@ -2457,10 +2582,10 @@ function renderConfigVerbinding(){
     + 'id="cfg-flow-dagoverleg" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
     + 'value="' + esc(FLOW_URLS.getDagoverleg) + '" onchange="cfSlaFlowUrlOp(\'getDagoverleg\',this.value)"></div>'
 
-    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 3 — Vorige shift ophalen (optioneel, later)</label>'
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 3 — Vorige shift ophalen</label>'
     + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
-    + 'id="cfg-flow-vorige" type="url" placeholder="Nog niet beschikbaar — later toe te voegen" '
-    + 'value="' + esc(FLOW_URLS.getVorigeShift) + '" onchange="cfSlaFlowUrlOp(\'getVorigeShift\',this.value)" disabled></div>'
+    + 'id="cfg-flow-vorige" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
+    + 'value="' + esc(FLOW_URLS.getVorigeShift) + '" onchange="cfSlaFlowUrlOp(\'getVorigeShift\',this.value)"></div>'
 
     + '<div class="p-3 bg-surface-container-low rounded-lg flex items-center justify-between">'
     + '<div><p class="text-label-ui font-bold">Ingelogd als: ' + esc(INGELOGD ? INGELOGD.naam : '—') + '</p>'
