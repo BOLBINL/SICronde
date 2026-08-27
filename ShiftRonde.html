@@ -1,0 +1,2747 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WML Production — Shift Rapportage</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#032416", "primary-container": "#1a3a2a", "on-primary": "#ffffff", "on-primary-container": "#82a48f",
+        "secondary": "#2c694e", "secondary-container": "#aeeecb", "on-secondary": "#ffffff", "on-secondary-container": "#316e52",
+        "surface": "#fdf9f3", "background": "#fdf9f3", "paper": "#FFFFFF",
+        "surface-container": "#f1ede7", "surface-container-low": "#f7f3ed", "surface-container-lowest": "#ffffff", "surface-container-high": "#ebe8e2",
+        "surface-variant": "#e6e2dc", "on-surface": "#1c1c18", "on-surface-variant": "#424843",
+        "border": "#E5E0D8", "outline": "#727973", "outline-variant": "#c1c8c2",
+        "muted": "#6B7280", "ink": "#1A1A1A",
+        "danger": "#C0392B", "danger-pale": "#FDECEA",
+        "warning": "#D97706", "warning-pale": "#FEF3C7",
+        "success-pale": "#D8F3DC", "info": "#1D4ED8", "info-pale": "#DBEAFE",
+        "note": "#6D28D9", "note-pale": "#EDE9FE"
+      },
+      spacing: { "gutter-desktop": "24px", "gutter-mobile": "12px", "grid-gap": "16px", "card-padding": "14px 18px", "modal-padding": "18px 20px" },
+      fontFamily: { "body": ["IBM Plex Sans"], "mono": ["IBM Plex Mono"] },
+      fontSize: {
+        "section-header": ["16px", {"lineHeight":"24px","fontWeight":"600"}],
+        "label-ui": ["12px", {"lineHeight":"16px","fontWeight":"600"}],
+        "metadata-caps": ["11px", {"lineHeight":"14px","letterSpacing":"0.05em","fontWeight":"600"}],
+        "data-mono": ["12px", {"lineHeight":"15px","fontWeight":"700"}],
+        "micro-caption": ["10px", {"lineHeight":"13px","fontWeight":"500"}]
+      }
+    }
+  }
+}
+</script>
+<style>
+  .material-symbols-outlined{ font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; vertical-align:middle; font-size:20px; }
+  body{ font-family:'IBM Plex Sans',sans-serif; background:#fdf9f3; }
+  .font-mono-num{ font-family:'IBM Plex Mono',monospace; }
+  .dashed-slot{ border:1.5px dashed #E5E0D8; transition:all .2s; }
+  .dashed-slot:hover{ border-color:#2c694e; background:#f7f3ed; }
+  .page{ display:none; }
+  .page.active{ display:block; }
+  .navlink.active{ background:#aeeecb; color:#316e52; font-weight:700; }
+  .navlink-mobile.active{ color:#2c694e; }
+  .afd-toggle.active{ background:#2c694e; color:#fff; }
+  .modal-overlay{ background:rgba(26,26,26,.65); backdrop-filter:blur(3px); display:none; position:fixed; inset:0; z-index:100; align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto; }
+  .modal-overlay.open{ display:flex; }
+  .locked-hint{ opacity:.45; pointer-events:none; filter:grayscale(.3); }
+  .status-pill{ font-family:'IBM Plex Mono',monospace; padding:3px 10px; border-radius:6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .status-Concept{ background:#e6e2dc; color:#1c1c18; }
+  .status-Overgedragen{ background:#D8F3DC; color:#2c694e; }
+  .status-Afgesloten{ background:#D8F3DC; color:#2c694e; }
+  .escalatie-badge{ font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.03em; display:inline-block; }
+  .escalatie-Kritiek{ background:#C0392B; color:#fff; }
+  .escalatie-Aandachtspunt{ background:#FEF3C7; color:#92400E; }
+  .escalatie-Routinematig{ background:#e6e2dc; color:#6B7280; }
+  .prioriteit-Hoog{ background:#C0392B; color:#fff; }
+  .prioriteit-Midden{ background:#FEF3C7; color:#92400E; }
+  .prioriteit-Laag{ background:#e6e2dc; color:#6B7280; }
+  .mededeling-tag{ font-size:9.5px; font-weight:700; color:#6D28D9; background:#EDE9FE; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.03em; display:inline-block; }
+  .qa-badge{ font-size:9.5px; font-weight:700; padding:2px 8px; border-radius:20px; background:#EDE9FE; color:#6D28D9; }
+  .tab-count{ background:#C0392B; color:#fff; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; min-width:16px; text-align:center; display:inline-block; }
+  .tab-count.zero{ background:#e6e2dc; color:#6B7280; }
+  ::-webkit-scrollbar{ width:7px; height:7px; }
+  ::-webkit-scrollbar-track{ background:#f1ede7; }
+  ::-webkit-scrollbar-thumb{ background:#c1c8c2; border-radius:4px; }
+</style>
+</head>
+<body class="bg-background text-on-surface">
+
+<div id="demo-banner" class="bg-secondary text-white text-center text-[11px] py-1.5 px-3">
+  <b>SharePoint TEST-MODUS</b> — data wordt echt opgeslagen in de lijsten. Login via bestaande M365-sessie (geen Azure AD-registratie nodig). 
+  Stel de <code>SHAREPOINT_SITE_URL</code> in via de Configuratie-pagina of pas 'm aan in de broncode.
+</div>
+
+<div id="sp-status" class="bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2" style="display:none">
+  <span class="material-symbols-outlined text-[14px] animate-spin">autorenew</span>
+  <span id="sp-status-tekst">Verbinden met SharePoint...</span>
+</div>
+<div id="sp-fout-banner" class="bg-danger text-white text-[11px] py-2 px-4 flex items-start gap-2" style="display:none">
+  <span class="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+  <span id="sp-fout-tekst"></span>
+</div>
+
+<div class="flex h-screen overflow-hidden">
+  <!-- SideNavBar (desktop) -->
+  <aside class="hidden md:flex flex-col h-full py-4 px-3 gap-y-2 bg-surface-container border-r border-border w-64 shrink-0">
+    <div class="mb-2 px-3 flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold text-[12px] font-mono-num">WML</div>
+      <span class="text-label-ui uppercase tracking-widest text-muted">Production</span>
+    </div>
+
+    <div class="px-3 mb-2">
+      <p class="text-metadata-caps text-muted uppercase mb-1">Afdeling</p>
+      <div class="flex bg-surface-container-low border border-border rounded-lg p-0.5 gap-0.5">
+        <button class="afd-toggle flex-1 text-label-ui py-1.5 rounded-md transition-colors" id="afd-btn-Productie" onclick="switchAfdeling('Productie')">Productie</button>
+        <button class="afd-toggle flex-1 text-label-ui py-1.5 rounded-md transition-colors" id="afd-btn-Inpak" onclick="switchAfdeling('Inpak')">Inpak</button>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3 px-3 mb-3 py-2 rounded-lg bg-surface-variant/20" id="tb-user" title="Ingelogd via Microsoft 365">
+      <div class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-label-ui shrink-0" id="tb-user-avatar">RJ</div>
+      <div class="min-w-0">
+        <p class="text-label-ui text-on-surface truncate" id="tb-user-naam">Richard · Teamleider</p>
+        <p class="text-micro-caption text-muted">Klik om uit te loggen</p>
+      </div>
+    </div>
+
+    <nav class="flex-1 space-y-1">
+      <a class="navlink flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-on-surface-variant hover:bg-surface-variant/50 cursor-pointer" onclick="switchPage('shift')" id="navlink-shift">
+        <span class="material-symbols-outlined">assignment_turned_in</span>
+        <span class="text-label-ui">Huidige Shift</span>
+      </a>
+      <a class="navlink flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-on-surface-variant hover:bg-surface-variant/50 cursor-pointer" onclick="switchPage('dagoverleg')" id="navlink-dagoverleg">
+        <span class="material-symbols-outlined">report_problem</span>
+        <span class="text-label-ui flex-1">Dagoverleg</span>
+        <span class="tab-count" id="count-open">0</span>
+      </a>
+      <a class="navlink flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-on-surface-variant hover:bg-surface-variant/50 cursor-pointer" onclick="switchPage('kpi')" id="navlink-kpi">
+        <span class="material-symbols-outlined">analytics</span>
+        <span class="text-label-ui">KPI Dashboard</span>
+      </a>
+      <a class="navlink flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-on-surface-variant hover:bg-surface-variant/50 cursor-pointer" onclick="switchPage('werkorders')" id="navlink-werkorders">
+        <span class="material-symbols-outlined">construction</span>
+        <span class="text-label-ui flex-1">TD Werkorders</span>
+        <span class="tab-count" id="count-wo">0</span>
+      </a>
+      <a class="navlink flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-on-surface-variant hover:bg-surface-variant/50 cursor-pointer" onclick="switchPage('geschiedenis')" id="navlink-geschiedenis">
+        <span class="material-symbols-outlined">history</span>
+        <span class="text-label-ui">Geschiedenis</span>
+      </a>
+      <a class="navlink flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-on-surface-variant hover:bg-surface-variant/50 cursor-pointer" onclick="switchPage('config')" id="navlink-config">
+        <span class="material-symbols-outlined">tune</span>
+        <span class="text-label-ui">Configuratie</span>
+      </a>
+    </nav>
+
+    <button class="w-full bg-secondary text-on-secondary py-2 px-4 rounded-lg text-label-ui font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2" onclick="openNieuweAfwijking(huidigeAfdeling, null)">
+      <span class="material-symbols-outlined text-[18px]">add_circle</span> Nieuwe afwijking
+    </button>
+  </aside>
+
+  <!-- Main column -->
+  <div class="flex-1 flex flex-col h-full overflow-hidden">
+    <!-- TopNavBar -->
+    <header class="flex justify-between items-center w-full px-gutter-mobile md:px-gutter-desktop h-14 bg-primary text-on-primary shrink-0">
+      <div class="flex items-center gap-3 md:hidden">
+        <div class="w-7 h-7 rounded bg-white/15 flex items-center justify-center font-bold text-[11px] font-mono-num">WML</div>
+        <span class="text-section-header font-bold" id="mobile-page-title">Huidige Shift</span>
+      </div>
+      <div class="hidden md:block text-label-ui opacity-80" id="desktop-page-title">Huidige Shift — <span id="desktop-page-afdeling">Productie</span></div>
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined opacity-80 cursor-pointer" title="Notificaties (decoratief)">notifications</span>
+        <span class="material-symbols-outlined opacity-80 cursor-pointer" title="Help (decoratief)">help</span>
+        <div class="md:hidden w-7 h-7 rounded-full bg-secondary flex items-center justify-center font-bold text-[10px]" id="tb-user-avatar-mobile">?</div>
+      </div>
+    </header>
+
+    <!-- Scrollable content -->
+    <main class="flex-1 overflow-y-auto pb-24 md:pb-8">
+      <div class="max-w-[1280px] w-full mx-auto p-gutter-mobile md:p-gutter-desktop">
+
+        <!-- PAGE: Huidige Shift -->
+        <div class="page active" id="page-shift">
+          <div class="md:hidden flex bg-surface-container-low border border-border rounded-lg p-0.5 gap-0.5 mb-grid-gap">
+            <button class="afd-toggle flex-1 text-label-ui py-2 rounded-md transition-colors" id="afd-btn-mobile-Productie" onclick="switchAfdeling('Productie')">Productie</button>
+            <button class="afd-toggle flex-1 text-label-ui py-2 rounded-md transition-colors" id="afd-btn-mobile-Inpak" onclick="switchAfdeling('Inpak')">Inpak</button>
+          </div>
+
+          <div class="flex justify-end mb-3">
+            <button class="px-3 py-1.5 bg-paper border border-border rounded-lg text-label-ui hover:bg-surface-container transition-colors flex items-center gap-1.5" id="vorige-shift-btn" onclick="openVorigeShiftModal(huidigeAfdeling)" style="display:none">
+              <span class="material-symbols-outlined text-[16px]">lock</span> Vorige shift bekijken
+            </button>
+          </div>
+
+          <section class="bg-paper border border-border rounded-xl p-card-padding mb-grid-gap flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-6">
+              <div class="border-l-4 border-secondary pl-4">
+                <h2 class="text-section-header" id="shift-datum">—</h2>
+                <p class="text-sm text-muted"><span id="shift-shift">—</span> Shift | <span id="shift-tl">—</span></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="status-pill" id="shift-status-pill">—</span>
+            </div>
+          </section>
+          <p class="text-micro-caption text-muted -mt-3 mb-grid-gap px-1" id="shift-audit">Actieve shift.</p>
+
+          <div class="bg-danger-pale text-danger border border-danger rounded-lg p-3 text-[12.5px] font-bold mb-grid-gap flex items-center gap-2" id="uitgelogd-banner" style="display:none">
+            <span class="material-symbols-outlined">lock</span> Niet ingelogd — log in (klik linksonder/rechtsboven, demo) om gegevens in te vullen. Hieronder alleen-lezen.
+          </div>
+
+          <!-- Ronde — bewust bovenaan en altijd actief (ook als de rest hieronder nog op slot zit):
+               dit ís de poort. Beantwoorden ontgrendelt de afwijkingen-sectie. -->
+          <section class="bg-paper border-2 border-secondary rounded-xl p-card-padding mb-grid-gap" id="ronde-sectie">
+            <h3 class="text-label-ui font-bold flex items-center gap-2 mb-3"><span class="material-symbols-outlined text-secondary">verified_user</span> Ronde gelopen?</h3>
+            <div id="shift-ronde"></div>
+          </section>
+
+          <div id="shift-edit-zone">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-grid-gap">
+              <div class="lg:col-span-8 space-y-grid-gap">
+                <section>
+                  <h3 class="text-metadata-caps text-muted uppercase mb-2 px-1">Productielijnen</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-grid-gap" id="shift-lijnen"></div>
+                </section>
+                <section class="bg-paper border border-border rounded-lg overflow-hidden">
+                  <div class="bg-surface-container px-card-padding py-2 border-b border-border flex justify-between items-center">
+                    <h3 class="text-label-ui font-bold">Veiligheid, Voedselveiligheid &amp; Planning</h3>
+                  </div>
+                  <div class="p-card-padding" id="shift-veiligheid"></div>
+                  <div class="px-card-padding pb-card-padding space-y-2">
+                    <button class="w-full dashed-slot rounded-lg p-3 flex items-center justify-center gap-2 text-muted hover:text-secondary transition-colors" onclick="openNieuweMededeling(huidigeAfdeling)">
+                      <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                      <span class="text-label-ui">Veiligheid / Voedselveiligheid / Planning melden</span>
+                    </button>
+                    <button class="w-full border-2 border-warning bg-warning-pale text-warning rounded-lg p-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" onclick="openNieuweLototo(huidigeAfdeling)">
+                      <span class="material-symbols-outlined text-[18px]">lock</span>
+                      <span class="text-label-ui font-bold">LOTOTO / Werkvergunning loggen</span>
+                      <span class="tab-count" id="count-lototo">0</span>
+                    </button>
+                  </div>
+                </section>
+
+                <section class="bg-paper border border-border rounded-lg overflow-hidden">
+                  <div class="bg-surface-container px-card-padding py-2 border-b border-border flex justify-between items-center">
+                    <h3 class="text-label-ui font-bold">Kwaliteit (QA), Blokkades &amp; Uitstoot</h3>
+                  </div>
+                  <div class="p-card-padding" id="shift-qa"></div>
+                  <div class="px-card-padding pb-card-padding space-y-2">
+                    <button class="w-full border-2 border-danger bg-danger-pale text-danger rounded-lg p-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" onclick="openNieuweBlokkade(huidigeAfdeling)">
+                      <span class="material-symbols-outlined text-[18px]">block</span>
+                      <span class="text-label-ui font-bold">Blokkade aanmaken (QA)</span>
+                      <span class="tab-count" id="count-blokkades">0</span>
+                    </button>
+                    <button class="w-full border-2 border-info bg-info-pale text-info rounded-lg p-2.5 flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" onclick="openNieuweEWeging(huidigeAfdeling)">
+                      <span class="material-symbols-outlined text-[18px]">scale</span>
+                      <span class="text-label-ui font-bold">Hoge uitstoot e-weging loggen</span>
+                    </button>
+                  </div>
+                </section>
+              </div>
+              <div class="lg:col-span-4 space-y-grid-gap">
+                <section class="bg-paper border border-border rounded-lg p-card-padding">
+                  <h3 class="text-label-ui font-bold mb-2">Personele bezetting <span class="text-micro-caption text-muted font-normal normal-case">(ziekmeldingen, tekorten)</span></h3>
+                  <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" id="shift-personele-bezetting" type="text" placeholder="Bijv. 1 ziekmelding ochtend, geen vervanging" oninput="fs_update(huidigeAfdeling,'personeleBezetting',this.value)">
+                </section>
+                <section class="bg-paper border border-border rounded-lg p-card-padding">
+                  <h3 class="text-label-ui font-bold mb-2">Algemene punten Dagoverleg <span class="text-micro-caption text-muted font-normal normal-case">(los van specifieke afwijkingen)</span></h3>
+                  <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none resize-none" id="shift-algemene-punten" rows="3" oninput="fs_update(huidigeAfdeling,'algemenePuntenDagoverleg',this.value)"></textarea>
+                </section>
+                <section class="bg-paper border border-border rounded-lg p-card-padding">
+                  <h3 class="text-label-ui font-bold mb-2">Acties / informatie voor volgende shift</h3>
+                  <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none resize-none" id="shift-acties" rows="4" oninput="fs_update(huidigeAfdeling,'actiesVolgendeShift',this.value)"></textarea>
+                </section>
+                <section class="bg-paper border border-border rounded-lg p-card-padding" id="shift-voorbereiding-wrap" style="display:none">
+                  <h3 class="text-label-ui font-bold mb-2">Voorbereiding volgende dag</h3>
+                  <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none resize-none" id="shift-voorbereiding" rows="3" oninput="fs_update(huidigeAfdeling,'voorbereiding',this.value)"></textarea>
+                </section>
+                <section class="bg-paper border border-border rounded-lg p-card-padding">
+                  <h3 class="text-label-ui font-bold mb-3 flex items-center gap-2"><span class="material-symbols-outlined text-secondary text-[18px]">history</span> Tijdlijn — deze shift</h3>
+                  <div id="shift-tijdlijn"></div>
+                </section>
+              </div>
+            </div>
+          </div>
+          <div class="h-16"></div>
+        </div>
+        <!-- /PAGE shift -->
+
+        <!-- PAGE: Dagoverleg -->
+        <div class="page" id="page-dagoverleg">
+          <div id="dagoverleg-blokkades" class="mb-grid-gap"></div>
+          <div class="flex flex-wrap gap-3 mb-grid-gap text-[11px] text-muted items-center">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-info inline-block"></span> Nieuw</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-warning inline-block"></span> 1-3 dagen open</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-danger inline-block"></span> 4+ dagen — escalatie</span>
+            <span class="flex items-center gap-1.5"><span class="escalatie-badge prioriteit-Hoog">Kritiek</span> escaleert direct, los van dagen open</span>
+          </div>
+          <div id="dagoverleg-content"></div>
+        </div>
+
+        <!-- PAGE: KPI Dashboard -->
+        <div class="page" id="page-kpi">
+          <div class="flex justify-between items-center mb-grid-gap">
+            <h2 class="text-section-header">KPI Dashboard</h2>
+            <select class="bg-paper border border-border rounded px-3 py-1.5 text-sm" id="kpi-filter" onchange="renderKpiDashboard()">
+              <option value="Beide">Beide afdelingen</option>
+              <option value="Productie">Productie</option>
+              <option value="Inpak">Inpak</option>
+            </select>
+          </div>
+          <div id="kpi-content"></div>
+        </div>
+
+        <!-- PAGE: TD Werkorders -->
+        <div class="page" id="page-werkorders">
+          <div class="bg-paper border border-border rounded-lg p-card-padding mb-grid-gap">
+            <p class="text-sm text-muted">Losse lijst (TD_Werkorders), 1:1 gekoppeld aan Afwijkingen waar Vervolgactie = TD. Eigen statuslijn — apart van de generieke Open/In behandeling/Afgerond van Afwijkingen.</p>
+          </div>
+          <button class="dashed-slot rounded-lg p-3 w-full flex items-center justify-center gap-2 text-muted hover:text-secondary transition-colors mb-grid-gap" onclick="openWerkorderVoorbeeld()">
+            <span class="material-symbols-outlined text-[18px]">add_circle</span>
+            <span class="text-label-ui">Werkorder aanmaken (voorbeeld)</span>
+          </button>
+          <div id="werkorders-content"></div>
+        </div>
+
+        <!-- PAGE: Geschiedenis -->
+        <div class="page" id="page-geschiedenis">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-grid-gap">
+            <section class="lg:col-span-8 space-y-3" id="geschiedenis-lijst"></section>
+            <aside class="lg:col-span-4 space-y-grid-gap">
+              <section>
+                <h3 class="text-metadata-caps text-muted uppercase mb-3">Recente kritieke punten</h3>
+                <div class="bg-paper border border-border rounded-lg divide-y divide-border" id="geschiedenis-kritiek"></div>
+              </section>
+            </aside>
+          </div>
+        </div>
+
+        <!-- PAGE: Configuratie -->
+        <div class="page" id="page-config">
+          <div class="bg-info-pale border border-info rounded-lg p-3 text-xs text-info flex items-start gap-2 mb-grid-gap">
+            <span class="material-symbols-outlined text-[18px] shrink-0 mt-0.5">info</span>
+            <span>In productie komt al deze data uit de <b>SharePoint Config-lijst</b> (één lijst, <code>ConfigType</code> als onderscheider). Wijzigingen hier zijn in-memory en herstarten bij page refresh. De "SharePoint-rijen preview" toont exact wat er in die lijst zou staan — direct bruikbaar als import-template voor de echte inrichting.</span>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-grid-gap">
+            <div class="lg:col-span-8 space-y-grid-gap" id="config-secties"></div>
+            <aside class="lg:col-span-4 space-y-grid-gap">
+              <section class="bg-paper border border-border rounded-lg p-card-padding">
+                <h3 class="text-label-ui font-bold mb-2 flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-muted">table_view</span> SharePoint-rijen preview</h3>
+                <p class="text-micro-caption text-muted mb-2">Zo ziet de Config-lijst eruit in SharePoint. Klik een sectie aan voor de bijbehorende rijen.</p>
+                <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm mb-3" id="config-preview-type" onchange="renderConfigPreview()">
+                  <option value="Productielijn">Productielijn</option>
+                  <option value="VervolgactieRoute">VervolgactieRoute</option>
+                  <option value="Drempelwaarde">Drempelwaarde</option>
+                  <option value="NotificatieRouting">NotificatieRouting</option>
+                  <option value="ShiftTijdvenster">ShiftTijdvenster</option>
+                  <option value="SchoonmaakStatus">SchoonmaakStatus</option>
+                  <option value="kpiReden">kpiReden</option>
+                </select>
+                <div class="overflow-x-auto" id="config-preview-table"></div>
+              </section>
+            </aside>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Modal: Nieuwe/Bewerk afwijking -->
+<div class="modal-overlay" id="modal-nieuw">
+  <div class="bg-paper rounded-xl w-full max-w-xl mt-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div class="bg-primary text-on-primary px-modal-padding py-4 flex justify-between items-center shrink-0">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">report_problem</span>
+        <h3 class="text-base font-bold" id="modal-nieuw-titel">Log Nieuwe Afwijking</h3>
+      </div>
+      <button class="hover:bg-primary-container/30 p-1 rounded-full transition-colors" onclick="closeModal('modal-nieuw')"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="p-modal-padding overflow-y-auto space-y-6">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Categorie</label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" id="nf-categorie" onchange="toggleLijnVeld();toggleCategorieVelden()">
+            <option>Productie-afwijking</option><option>Veiligheid</option><option>Voedselveiligheid</option><option>LOTOTO / Werkvergunning</option><option>Planning</option>
+          </select>
+        </div>
+        <div class="space-y-1" id="nf-lijn-wrap">
+          <label class="text-metadata-caps text-muted uppercase">Lijn</label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" id="nf-lijn"></select>
+        </div>
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase" id="nf-afwijking-label">Omschrijving</label>
+        <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none resize-none" id="nf-afwijking" rows="3" placeholder="Wat is er gebeurd?"></textarea>
+      </div>
+
+      <div class="space-y-1" id="nf-foto-wrap" style="display:none">
+        <label class="text-metadata-caps text-muted uppercase">Veiligheidsobservatie — foto <span class="normal-case text-[10px] text-muted/70 font-normal">(optioneel, alleen lokaal in deze demo — in productie een SharePoint-bijlage)</span></label>
+        <input type="file" accept="image/*" capture="environment" id="nf-foto-input" class="hidden" onchange="handleFotoSelectie(this)">
+        <div id="nf-foto-box"></div>
+      </div>
+
+      <label class="bg-danger-pale border-2 border-danger rounded-lg p-3 items-center gap-3 cursor-pointer" id="nf-vreemd-voorwerp-wrap" style="display:none">
+        <input type="checkbox" id="nf-vreemd-voorwerp" class="w-5 h-5 accent-danger align-middle mr-2" onchange="handleVreemdVoorwerpToggle()">
+        <span class="text-danger font-bold text-sm align-middle">Vreemd Voorwerp (Glas / Hard plastic / etc.)</span>
+        <span class="block text-[10.5px] text-danger/80 mt-1 ml-7">Zet Prioriteit en Escalatieniveau direct en dwingend op Hoog/Kritiek — niet meer handmatig te verlagen zolang dit is aangevinkt.</span>
+      </label>
+
+      <div id="nf-kpi-wrap" class="space-y-2">
+        <label class="text-metadata-caps text-muted uppercase block">KPI Impact Metrics</label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-surface-container p-2.5 rounded border border-border">
+            <span class="text-micro-caption text-muted block mb-1">Waste (KG)</span>
+            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-waste" type="number" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-waste-reden"></select>
+          </div>
+          <div class="bg-surface-container p-2.5 rounded border border-border">
+            <span class="text-micro-caption text-muted block mb-1">Rework (KG)</span>
+            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-rework" type="number" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-rework-reden"></select>
+          </div>
+          <div class="bg-surface-container p-2.5 rounded border border-border">
+            <span class="text-micro-caption text-muted block mb-1">Stilstand (min)</span>
+            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-stilstand" type="number" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-stilstand-reden"></select>
+          </div>
+          <div class="bg-surface-container p-2.5 rounded border border-border">
+            <span class="text-micro-caption text-muted block mb-1">Extra werk (min)</span>
+            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-extrawerk" type="number" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-transparent border-none p-0 text-[10px] text-muted focus:ring-0 mt-1" id="nf-extrawerk-reden"></select>
+          </div>
+        </div>
+      </div>
+
+      <div id="nf-volledig-wrap" class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Effect / Impact <span class="normal-case text-[10px] text-muted/70 font-normal">(optioneel — niet in het referentie-ontwerp, wel een bestaand SharePoint-veld)</span></label>
+        <input class="w-full border-b border-border bg-transparent py-1 text-sm focus:border-secondary outline-none" id="nf-impact" type="text" placeholder="Wat was het effect?">
+      </div>
+      <p class="text-xs text-muted bg-info-pale text-info rounded-lg p-2.5" id="nf-planning-hint" style="display:none">Categorie Planning = mededeling, geen afwijking — Effect/Oorzaak/Oplossing en escalatie zijn hier niet van toepassing.</p>
+
+      <div class="p-4 bg-surface-container-lowest border border-border rounded-lg space-y-4 border-l-4 border-l-secondary" id="nf-rca-box">
+        <h4 class="text-label-ui text-secondary flex items-center gap-2"><span class="material-symbols-outlined text-[18px]">psychology</span> Root Cause Analysis</h4>
+        <div class="space-y-1">
+          <label class="text-micro-caption text-muted uppercase">Oorzaak (Root Cause)</label>
+          <input class="w-full border-b border-border bg-transparent py-1 text-sm focus:border-secondary outline-none" id="nf-oorzaak" type="text" placeholder="Directe aanleiding...">
+        </div>
+        <div class="space-y-1">
+          <label class="text-micro-caption text-muted uppercase">Correctief (Immediate Action)</label>
+          <input class="w-full border-b border-border bg-transparent py-1 text-sm focus:border-secondary outline-none" id="nf-correctief" type="text" placeholder="Wat is er direct gedaan?">
+        </div>
+        <div class="space-y-1">
+          <label class="text-micro-caption text-muted uppercase">Preventief (Prevention Plan)</label>
+          <input class="w-full border-b border-border bg-transparent py-1 text-sm focus:border-secondary outline-none" id="nf-preventief" type="text" placeholder="Hoe voorkomen we dit?">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 items-end" id="nf-prioriteit-wrap">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Vervolgactie (Action For)</label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" id="nf-vervolgactie"></select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Prioriteit <span class="normal-case text-[10px] text-muted/70 font-normal">(niet in referentie — nodig voor escalatie zonder KPI's)</span></label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" id="nf-prioriteit" onchange="updateEscalatiePreview()">
+            <option>Laag</option><option selected>Midden</option><option>Hoog</option>
+          </select>
+        </div>
+      </div>
+      <div class="rounded-lg p-3 flex items-center justify-between escalatie-Routinematig" id="nf-escalatie-preview" style="display:none"></div>
+
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Toegewezen aan <span class="normal-case text-[10px] text-muted/70 font-normal">(optioneel)</span></label>
+        <input class="w-full border-b border-border bg-transparent py-1 text-sm focus:border-secondary outline-none" id="nf-toegewezen" type="text">
+      </div>
+
+      <div class="hidden bg-danger-pale border border-danger text-danger rounded-lg p-3 text-xs" id="nf-fout"></div>
+    </div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-between gap-3 shrink-0">
+      <button class="px-4 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" id="nf-verwijder-btn" style="display:none" onclick="bevestigVerwijderenVanuitModal()">Verwijderen</button>
+      <div class="flex gap-3 ml-auto">
+        <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-nieuw')">Annuleren</button>
+        <button class="px-5 py-2 bg-secondary text-on-secondary text-label-ui font-bold rounded-lg hover:opacity-90 transition-colors flex items-center gap-2" onclick="opslaanAfwijking()"><span class="material-symbols-outlined text-[18px]">save</span> Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Aftekenen (handtekening / bevestiging) -->
+<div class="modal-overlay" id="modal-aftekenen">
+  <div class="bg-paper rounded-xl w-full max-w-md mt-10 shadow-2xl">
+    <div class="p-modal-padding border-b border-border flex items-center justify-between">
+      <h3 class="text-base font-bold" id="aft-titel">Bevestigen</h3>
+      <button class="text-muted hover:text-ink text-xl leading-none" onclick="closeModal('modal-aftekenen')">✕</button>
+    </div>
+    <div class="p-modal-padding space-y-4">
+      <p class="text-sm text-muted" id="aft-uitleg"></p>
+      <div class="bg-warning-pale border border-warning text-warning rounded-lg p-3 text-xs font-bold flex items-start gap-2" id="aft-lege-shift-warn" style="display:none">
+        <span class="material-symbols-outlined text-[18px] shrink-0">warning</span>
+        <span>Let op: er is op geen enkele lijn een afwijking of melding gelogd deze shift. Weet je zeker dat er niets te melden was?</span>
+      </div>
+      <div class="space-y-2.5" id="aft-ccp-gemba-wrap" style="display:none">
+        <label class="flex items-start gap-2.5 bg-surface-container-low border border-border rounded-lg p-3 cursor-pointer">
+          <input type="checkbox" id="aft-gemba" class="w-4 h-4 mt-0.5 accent-secondary" onchange="updateAftBtnState()">
+          <span class="text-xs font-medium">De overdracht is fysiek op de werkvloer (Gemba) afgestemd met de inkomende teamleider.</span>
+        </label>
+      </div>
+      <div class="flex items-center gap-3 bg-success-pale border border-secondary-container rounded-lg p-3">
+        <div class="w-9 h-9 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-sm shrink-0" id="aft-avatar">RJ</div>
+        <div>
+          <p class="text-sm font-bold text-secondary" id="aft-naam-display">Richard · Teamleider</p>
+          <p class="text-[11px] text-secondary/80">Ingelogd via Microsoft 365 — automatisch vastgelegd in de audit trail.</p>
+        </div>
+      </div>
+    </div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-end gap-3">
+      <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-aftekenen')">Annuleren</button>
+      <button class="px-5 py-2 bg-secondary text-on-secondary text-label-ui font-bold rounded-lg hover:opacity-90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40" id="aft-btn" onclick="confirmAftekenen()">✓ Bevestigen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Shift-detail (alleen-lezen, gedeeld door Vorige-shift en Geschiedenis) -->
+<div class="modal-overlay" id="modal-shift-detail">
+  <div class="bg-paper rounded-xl w-full max-w-xl mt-6 shadow-2xl flex flex-col max-h-[88vh]">
+    <div class="p-modal-padding border-b border-border flex items-center justify-between shrink-0">
+      <h3 class="text-base font-bold flex items-center gap-2"><span class="material-symbols-outlined">lock</span> <span id="shift-detail-titel">Shift — alleen lezen</span></h3>
+      <button class="text-muted hover:text-ink text-xl leading-none" onclick="closeModal('modal-shift-detail')">✕</button>
+    </div>
+    <div class="p-modal-padding overflow-y-auto" id="shift-detail-body"></div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-end shrink-0">
+      <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-shift-detail')">Sluiten</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Werkorder voorbeeld (niet gekoppeld, ander project) -->
+<div class="modal-overlay" id="modal-werkorder-voorbeeld">
+  <div class="bg-paper rounded-xl w-full max-w-md mt-10 shadow-2xl">
+    <div class="p-modal-padding border-b border-border flex items-center justify-between">
+      <h3 class="text-base font-bold flex items-center gap-2"><span class="material-symbols-outlined">construction</span> Werkorder aanvragen — voorbeeld</h3>
+      <button class="text-muted hover:text-ink text-xl leading-none" onclick="closeModal('modal-werkorder-voorbeeld')">✕</button>
+    </div>
+    <div class="p-modal-padding space-y-4">
+      <p class="text-xs bg-info-pale text-info rounded-lg p-2.5">Dit is een voorbeeld van de toekomstige TD-werkorder-aanvraag — een apart project, later op te leveren. Deze velden zijn niet gekoppeld en "Aanvragen" slaat niets op.</p>
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Omschrijving probleem</label>
+        <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm outline-none resize-none" rows="2" placeholder="Wat is er aan de hand?"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1"><label class="text-metadata-caps text-muted uppercase">Asset / machine</label><input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm outline-none" placeholder="bijv. Kaaklift — Lijn C"></div>
+        <div class="space-y-1"><label class="text-metadata-caps text-muted uppercase">Prioriteit</label><select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm outline-none"><option>Laag</option><option selected>Midden</option><option>Hoog — direct</option></select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1"><label class="text-metadata-caps text-muted uppercase">Aangevraagd door</label><input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm outline-none opacity-60" value="Ingelogde gebruiker" disabled></div>
+        <div class="space-y-1"><label class="text-metadata-caps text-muted uppercase">Gewenste startdatum</label><input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm outline-none" type="date"></div>
+      </div>
+      <p class="text-xs text-muted">In de volledige flow (later project) koppelt dit automatisch aan de bijbehorende Afwijking en krijgt het een eigen status, zoals nu al te zien bij de bestaande werkorders.</p>
+    </div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-end gap-3">
+      <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-werkorder-voorbeeld')">Annuleren</button>
+      <button class="px-5 py-2 bg-secondary text-on-secondary text-label-ui font-bold rounded-lg hover:opacity-90 transition-colors" onclick="closeModal('modal-werkorder-voorbeeld')" title="Voorbeeld — slaat niets op">Aanvragen (voorbeeld)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ronde niet gelopen — reden -->
+<div class="modal-overlay" id="modal-ronde-reden">
+  <div class="bg-paper rounded-xl w-full max-w-md mt-10 shadow-2xl">
+    <div class="bg-warning text-white px-modal-padding py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined">report_problem</span>
+        <h3 class="text-base font-bold">Ronde niet gelopen</h3>
+      </div>
+      <button class="hover:bg-white/20 p-1 rounded-full transition-colors" onclick="closeModal('modal-ronde-reden')"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="p-modal-padding space-y-3">
+      <p class="text-sm text-muted">Geef aan waarom de ronde (nog) niet gelopen is. Pas na het invullen kun je afwijkingen loggen voor deze shift.</p>
+      <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-secondary focus:border-secondary outline-none resize-none" id="ronde-reden-tekst" rows="3" placeholder="Bijv. te druk op de lijn, personeelstekort..."></textarea>
+      <p class="hidden text-danger text-xs" id="ronde-reden-fout">Vul een reden in om door te gaan.</p>
+    </div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-end gap-3">
+      <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-ronde-reden')">Annuleren</button>
+      <button class="px-5 py-2 bg-secondary text-on-secondary text-label-ui font-bold rounded-lg hover:opacity-90 transition-colors" onclick="bevestigRondeReden()">✓ Bevestigen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Blokkadeformulier (QA) -->
+<div class="modal-overlay" id="modal-blokkade">
+  <div class="bg-paper rounded-xl w-full max-w-xl mt-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div class="bg-danger text-white px-modal-padding py-4 flex justify-between items-center shrink-0">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">block</span>
+        <h3 class="text-base font-bold" id="modal-blokkade-titel">Blokkade aanmaken (QA)</h3>
+      </div>
+      <button class="hover:bg-white/20 p-1 rounded-full transition-colors" onclick="closeModal('modal-blokkade')"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="p-modal-padding overflow-y-auto space-y-5">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Type Blokkade</label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-danger focus:border-danger outline-none" id="bl-type">
+            <option>Grondstof</option><option>Halffabricaat</option><option>Eindproduct</option><option>Verpakkingsmateriaal</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Batchnummer / THT <span class="normal-case text-[10px] text-danger font-bold">(cruciaal voor tracering)</span></label>
+          <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-danger focus:border-danger outline-none" id="bl-batch" type="text" placeholder="Bijv. L2406A / THT 12-2026">
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Artikel / Omschrijving</label>
+        <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-danger focus:border-danger outline-none" id="bl-artikel" type="text" placeholder="Wat is er geblokkeerd?">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Hoeveelheid geblokkeerd</label>
+          <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-danger focus:border-danger outline-none" id="bl-hoeveelheid" type="text" placeholder="Bijv. 3 pallets, 150 kg">
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Fysieke locatie</label>
+          <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-danger focus:border-danger outline-none" id="bl-locatie" type="text" placeholder="Waar staat het nu in de fabriek?">
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Reden van blokkade</label>
+        <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-danger focus:border-danger outline-none resize-none" id="bl-reden" rows="3" placeholder="Waarom wordt dit geblokkeerd?"></textarea>
+      </div>
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Foto <span class="normal-case text-[10px] text-danger font-bold">— sterk aanbevolen voor het QA-dossier (niet hard verplicht)</span></label>
+        <input type="file" accept="image/*" capture="environment" id="bl-foto-input" class="hidden" onchange="handleBlokkadeFotoSelectie(this)">
+        <div id="bl-foto-box"></div>
+      </div>
+      <div class="hidden bg-danger-pale border border-danger text-danger rounded-lg p-3 text-xs" id="bl-fout"></div>
+    </div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-between gap-3 shrink-0">
+      <button class="px-4 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" id="bl-verwijder-btn" style="display:none" onclick="bevestigVerwijderenBlokkade()">Verwijderen</button>
+      <div class="flex gap-3 ml-auto">
+        <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-blokkade')">Annuleren</button>
+        <button class="px-5 py-2 bg-danger text-white text-label-ui font-bold rounded-lg hover:opacity-90 transition-colors flex items-center gap-2" onclick="opslaanBlokkade()"><span class="material-symbols-outlined text-[18px]">save</span> Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Hoge uitstoot E-weging -->
+<div class="modal-overlay" id="modal-eweging">
+  <div class="bg-paper rounded-xl w-full max-w-xl mt-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div class="bg-info text-white px-modal-padding py-4 flex justify-between items-center shrink-0">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">scale</span>
+        <h3 class="text-base font-bold" id="modal-eweging-titel">Hoge uitstoot e-weging loggen</h3>
+      </div>
+      <button class="hover:bg-white/20 p-1 rounded-full transition-colors" onclick="closeModal('modal-eweging')"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="p-modal-padding overflow-y-auto space-y-5">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Lijn</label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none" id="ew-lijn"></select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Tijdvak van uitstoot</label>
+          <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none" id="ew-tijdvak" type="text" placeholder="Bijv. 14:00 - 14:30">
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Artikel / Batch</label>
+        <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none" id="ew-artikel" type="text">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Soort uitstoot</label>
+          <select class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none" id="ew-soort">
+            <option>Ondergewicht</option><option>Overgewicht</option><option>Metaaldetectie</option><option>Anders</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase">Geschatte hoeveelheid <span class="normal-case text-[10px] text-muted/70 font-normal">(stuks of kg)</span></label>
+          <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none font-mono-num" id="ew-hoeveelheid" type="number">
+        </div>
+      </div>
+      <div class="space-y-1">
+        <label class="text-metadata-caps text-muted uppercase">Genomen actie</label>
+        <textarea class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none resize-none" id="ew-actie" rows="3" placeholder="Bijv. lijn stopgezet, opnieuw gewogen, weggegooid"></textarea>
+      </div>
+      <div class="hidden bg-danger-pale border border-danger text-danger rounded-lg p-3 text-xs" id="ew-fout"></div>
+    </div>
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-between gap-3 shrink-0">
+      <button class="px-4 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" id="ew-verwijder-btn" style="display:none" onclick="bevestigVerwijderenEWeging()">Verwijderen</button>
+      <div class="flex gap-3 ml-auto">
+        <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-eweging')">Annuleren</button>
+        <button class="px-5 py-2 bg-info text-white text-label-ui font-bold rounded-lg hover:opacity-90 transition-colors flex items-center gap-2" onclick="opslaanEWeging()"><span class="material-symbols-outlined text-[18px]">save</span> Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sticky footer — alleen zichtbaar op Huidige Shift (zie switchPage). Boven de mobiele bottom-nav,
+     naast de sidebar op desktop. Bevat dezelfde handleOverdracht()-validatie als voorheen — alleen de
+     knop is verplaatst, de logica (lege-shift-waarschuwing, CCP/Gemba-vinkjes) is ongewijzigd. -->
+<div class="fixed left-0 md:left-64 right-0 bottom-16 md:bottom-0 z-40 bg-paper border-t border-border shadow-lg px-gutter-mobile md:px-gutter-desktop py-3 flex items-center justify-between gap-3" id="shift-sticky-footer" style="display:none">
+  <div class="min-w-0">
+    <p class="text-label-ui font-bold truncate" id="footer-afdeling-label">Productie</p>
+    <p class="text-micro-caption text-muted" id="footer-status-label">Concept</p>
+  </div>
+  <div id="footer-overdracht-actions" class="shrink-0"></div>
+</div>
+
+<!-- BottomNavBar (mobile only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 grid grid-cols-5 items-center h-16 bg-paper border-t border-border shadow-lg">
+  <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5" onclick="switchPage('shift')" id="navmobile-shift">
+    <span class="material-symbols-outlined">assignment_turned_in</span><span class="text-micro-caption">Shift</span>
+  </button>
+  <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5 relative" onclick="switchPage('dagoverleg')" id="navmobile-dagoverleg">
+    <span class="material-symbols-outlined">report_problem</span><span class="text-micro-caption">Dagoverleg</span>
+  </button>
+  <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5" onclick="switchPage('kpi')" id="navmobile-kpi">
+    <span class="material-symbols-outlined">analytics</span><span class="text-micro-caption">KPI's</span>
+  </button>
+  <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5" onclick="switchPage('werkorders')" id="navmobile-werkorders">
+    <span class="material-symbols-outlined">construction</span><span class="text-micro-caption">TD</span>
+  </button>
+  <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5" onclick="switchPage('geschiedenis')" id="navmobile-geschiedenis">
+    <span class="material-symbols-outlined">history</span><span class="text-micro-caption">Historie</span>
+  </button>
+</nav>
+
+<script>
+const CONFIG = {
+  productielijnen: { Productie: ['Deegmakerij','Lijn A','Lijn B','Lijn C'], Inpak: ['Lijn A','Lijn B','Lijn C'] },
+  vervolgactieRoutes: [
+    {code:'TD', naam:'Technische Dienst', kleur:'#1D4ED8'},
+    {code:'Planner', naam:'Planning', kleur:'#6D28D9'},
+    {code:'QA', naam:'Kwaliteit (QA)', kleur:'#C0392B'},
+    {code:'R&D', naam:'R&D', kleur:'#2D6A4F'},
+    {code:'Geen', naam:'Geen vervolgactie', kleur:'#6B7280'}
+  ],
+  escalatie: [
+    {maxDagen:0, klasse:'esc-0', label:'nieuw', kleur:'#1D4ED8'},
+    {maxDagen:1, klasse:'esc-1', label:'1 dag open', kleur:'#CA8A04'},
+    {maxDagen:3, klasse:'esc-2', label:'dagen open', kleur:'#D97706'},
+    {maxDagen:Infinity, klasse:'esc-3', label:'dagen open — escalatie', kleur:'#C0392B'}
+  ],
+  prioriteiten: ['Laag','Midden','Hoog'],
+  tdStatussen: ['Gemeld','Opgepakt','Wacht op onderdeel','Opgelost'],
+  drempelwaarden: { stilstandMin: 10, wasteKg: 50, extraWerkMin: 20 },
+  notificatieRouting: { 'Veiligheid':'Veiligheidsfunctionaris', 'Voedselveiligheid':'QA-manager', 'KritiekeAfwijking':'Productiemanager' },
+  // Aantal verplichte rondes per shift — uit de SharePoint Config-lijst (hier nog 1 vaste waarde voor
+  // beide afdelingen; in productie kan dit per afdeling/shift-tijdvak verschillen via dezelfde lijst).
+  // Dit is bewust een richtlijn/teller, geen harde blokkade — een teamleider kan altijd afwijkingen
+  // loggen zodra er minstens 1 ronde gelogd is of een reden is opgegeven; rondes lopen door het hele
+  // shift heen, je kunt niet wachten met afwijkingen loggen tot de laatste ronde ook gelopen is.
+  rondeVereistAantal: 2,
+  // Reden-opties per KPI-metric — in productie uit de SharePoint Config-lijst (ConfigType = kpiReden).
+  // Eerste optie altijd leeg/geen (optioneel veld), zodat een teamleider het kan overslaan.
+  kpiRedenen: {
+    waste:     ['— geen reden —','Productie-uitval','Schoonmaakwaste','Opstart- / stopwaste','Recept-/kwaliteitsafwijking','THT verlopen','Verpakkingsschade','Restant kleine batch','Anders'],
+    rework:    ['— geen reden —','Ondergewicht herwogen','Overgewicht bijgesneden','Schoonmaak-rework','Verpakkingsfout','Labelfout','Verkeerde vulling','Anders'],
+    stilstand: ['— geen reden —','Machinestoring','Technische dienst onderhoud','Schoonmaak / 5S','Wachten op grondstof','Wachten op verpakking','Personeelstekort','Overleg / instructie','Anders'],
+    extrawerk: ['— geen reden —','Nasorteren','Handmatig vullen','Herwerk verpakking','Kwaliteitscontrole extra','Opruimen na storing','Anders']
+  },
+  // Schoonmaak/5S-statusopties bij overdracht — config-driven (SharePoint Config-lijst in productie),
+  // niet hardcoded in de render-functie.
+  schoonmaakStatussen: [
+    {code:'Groen', kleur:'#2c694e', label:'Goed'},
+    {code:'Oranje', kleur:'#D97706', label:'Matig'},
+    {code:'Rood', kleur:'#C0392B', label:'Slecht'}
+  ]
+};
+
+// ============ SHAREPOINT KOPPELING ============
+// Vul hieronder de URL van jouw SharePoint-site in.
+// Formaat: https://jouwbedrijf.sharepoint.com/sites/JouwSiteNaam
+// Geen trailing slash.
+const SHAREPOINT_SITE_URL = 'https://biscuitinternational.sharepoint.com/sites/BroekopLangedijk';
+
+// Lijstnamen — pas aan als jouw lijstnamen afwijken van de architectuurnota
+const SP_LIJSTEN = {
+  shiftRapporten: 'ShiftRapporten',
+  afwijkingen:    'ShiftAfwijkingen',
+  config:         'ShiftConfig',
+  werkorders:     'TD_Werkorders'
+};
+
+// Ingelogde gebruiker — wordt bij opstarten opgehaald via de bestaande M365-browsersessie.
+// Zolang de HTML op hetzelfde SharePoint-domein staat (documentbibliotheek of site-pagina),
+// stuurt de browser automatisch de juiste sessie-cookies mee — geen Azure AD-app nodig.
+let INGELOGD = null;
+let SP_DIGEST = null; // Request digest voor schrijf-operaties
+
+async function initialiseerSharePoint(){
+  toonLaadStatus('Verbinden met SharePoint...');
+  try {
+    // 1. Haal de ingelogde gebruiker op
+    const userResp = await fetch(SHAREPOINT_SITE_URL + '/_api/web/currentuser', {
+      headers: { 'Accept': 'application/json;odata=nometadata' },
+      credentials: 'include'
+    });
+    if(!userResp.ok) throw new Error('Kan gebruiker niet ophalen — controleer of de site-URL correct is en je ingelogd bent (HTTP ' + userResp.status + ')');
+    const user = await userResp.json();
+    INGELOGD = {
+      naam:  user.Title,
+      email: user.Email,
+      id:    user.Id,
+      rol:   'Teamleider'  // In productie: ophalen uit beveiligingsgroep via /_api/web/sitegroups
+    };
+
+    // 2. Haal de request digest op (vereist voor POST/PATCH-operaties naar SharePoint)
+    const digestResp = await fetch(SHAREPOINT_SITE_URL + '/_api/contextinfo', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json;odata=nometadata' },
+      credentials: 'include'
+    });
+    if(!digestResp.ok) throw new Error('Kan request digest niet ophalen');
+    const digestData = await digestResp.json();
+    SP_DIGEST = digestData.FormDigestValue;
+
+    // Digest verloopt na 30 minuten — automatisch vernieuwen
+    setInterval(async function(){
+      try {
+        const r = await fetch(SHAREPOINT_SITE_URL + '/_api/contextinfo', {
+          method: 'POST',
+          headers: { 'Accept': 'application/json;odata=nometadata' },
+          credentials: 'include'
+        });
+        const d = await r.json();
+        SP_DIGEST = d.FormDigestValue;
+      } catch(e){ console.warn('Digest vernieuwen mislukt:', e); }
+    }, 25 * 60 * 1000);
+
+    verbergLaadStatus();
+    renderTopbarLogin();
+    renderHuidigeShift();
+    console.info('SharePoint-verbinding OK — ingelogd als:', INGELOGD.naam, '(' + INGELOGD.email + ')');
+
+  } catch(e){
+    verbergLaadStatus();
+    toonFoutBanner(
+      'Kan geen verbinding maken met SharePoint. ' + e.message + '<br>' +
+      'Controleer: (1) het bestand staat op <b>' + SHAREPOINT_SITE_URL + '</b>, ' +
+      '(2) je bent ingelogd in Microsoft 365, ' +
+      '(3) de lijstnamen in SP_LIJSTEN kloppen met de werkelijke namen.'
+    );
+    // Fallback: app werkt in offline demo-modus zodat de UI testbaar blijft
+    INGELOGD = {naam:'Offline (demo)', email:'', id:0, rol:'Teamleider'};
+    renderTopbarLogin();
+    renderHuidigeShift();
+  }
+}
+
+function toonLaadStatus(tekst){
+  const el = document.getElementById('sp-status');
+  if(el){ el.textContent = tekst; el.style.display = 'flex'; }
+}
+function verbergLaadStatus(){
+  const el = document.getElementById('sp-status');
+  if(el) el.style.display = 'none';
+}
+function toonFoutBanner(html){
+  const el = document.getElementById('sp-fout-banner');
+  if(el){ el.innerHTML = html; el.style.display = 'flex'; }
+}
+
+function renderTopbarLogin(){
+  if(!INGELOGD) return;
+  const initialen = INGELOGD.naam.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  ['tb-user-avatar','tb-user-avatar-mobile'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.textContent = initialen;
+  });
+  document.getElementById('tb-user-naam').textContent = INGELOGD.naam + ' · ' + INGELOGD.rol;
+}
+
+// Helper: POST een nieuw item naar een SharePoint-lijst
+async function spPost(lijstNaam, velden){
+  const resp = await fetch(
+    SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + lijstNaam + "')/items",
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Accept':         'application/json;odata=nometadata',
+        'Content-Type':   'application/json;odata=nometadata',
+        'X-RequestDigest': SP_DIGEST
+      },
+      body: JSON.stringify(velden)
+    }
+  );
+  if(!resp.ok){
+    const fout = await resp.text();
+    throw new Error('POST naar ' + lijstNaam + ' mislukt (HTTP ' + resp.status + '): ' + fout);
+  }
+  return await resp.json();
+}
+
+// Helper: PATCH een bestaand item
+async function spPatch(lijstNaam, itemId, velden){
+  const resp = await fetch(
+    SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + lijstNaam + "')/items(" + itemId + ")",
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Accept':           'application/json;odata=nometadata',
+        'Content-Type':     'application/json;odata=nometadata',
+        'X-RequestDigest':  SP_DIGEST,
+        'X-HTTP-Method':    'MERGE',
+        'If-Match':         '*'
+      },
+      body: JSON.stringify(velden)
+    }
+  );
+  if(!resp.ok){
+    const fout = await resp.text();
+    throw new Error('PATCH naar ' + lijstNaam + ' mislukt (HTTP ' + resp.status + '): ' + fout);
+  }
+}
+
+// Helper: items ophalen met OData-filter
+async function spGet(lijstNaam, filter, select){
+  let url = SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + lijstNaam + "')/items";
+  const params = [];
+  if(filter) params.push('$filter=' + encodeURIComponent(filter));
+  if(select) params.push('$select=' + encodeURIComponent(select));
+  if(params.length) url += '?' + params.join('&');
+  const resp = await fetch(url, {
+    credentials: 'include',
+    headers: { 'Accept': 'application/json;odata=nometadata' }
+  });
+  if(!resp.ok) throw new Error('GET ' + lijstNaam + ' mislukt (HTTP ' + resp.status + ')');
+  const data = await resp.json();
+  return data.value;
+}
+
+let huidigeAfdeling = 'Productie';
+
+function vandaagISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function bepaalShiftOpBasisVanTijd(d){ const uur=(d||new Date()).getHours(); if(uur>=5&&uur<14) return 'Ochtend'; if(uur>=14&&uur<23) return 'Avond'; return 'Nacht'; }
+function formatDatumNL(iso){ if(!iso) return '—'; const delen=iso.split('-'); return delen.length===3 ? delen[2]+'-'+delen[1]+'-'+delen[0] : iso; }
+
+function maakLegeShift(afdeling){
+  const lijnen = {};
+  CONFIG.productielijnen[afdeling].forEach(function(l){ lijnen[l] = {afwijkingen:[], schoonmaakStatus:null}; });
+  const shift = { datum: vandaagISO(), shift: bepaalShiftOpBasisVanTijd(), teamleider:'', status:'Concept', lijnen: lijnen, veiligheid: [], blokkades: [], eWegingen: [], rondeMomenten:[], rondeReden:'', actiesVolgendeShift:'', personeleBezetting:'', algemenePuntenDagoverleg:'' };
+  if(afdeling==='Inpak') shift.voorbereiding = '';
+  return shift;
+}
+function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function lijnId(naam){ return naam.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+const VERVOLGACTIES = [
+  {id:'va-1', titel:'Verkeerd recept geproduceerd — 200 kg onbruikbaar deeg', afdeling:'Productie', lijn:'Deegmakerij', vervolgactie:'Planner', status:'Open', gemeld:-4, prioriteit:'Midden'},
+  {id:'va-2', titel:'Inpakgewicht ligt 4% boven nominaal', afdeling:'Productie', lijn:'Lijn C', vervolgactie:'R&D', status:'Open', gemeld:-6, prioriteit:'Laag'},
+  {id:'va-3', titel:'Kaaklift inpak: platen scheef en vastgelopen', afdeling:'Inpak', lijn:'Lijn C', vervolgactie:'TD', status:'In behandeling', gemeld:0, prioriteit:'Midden'},
+  {id:'va-4', titel:'Blauw plastic gevonden in gevulde koeken', afdeling:'Productie', lijn:'Veiligheid/Voedselveiligheid', vervolgactie:'QA', status:'In behandeling', gemeld:-1, prioriteit:'Hoog'},
+  {id:'va-5', titel:'Ring vastgelopen in ringen afhaal — 600 kg waste', afdeling:'Productie', lijn:'Lijn B', vervolgactie:'TD', status:'Afgerond', gemeld:-2, prioriteit:'Midden'},
+  {id:'va-6', titel:'Rb kano slechte kwaliteit + schaafstel (325 kg rework)', afdeling:'Inpak', lijn:'Lijn C', vervolgactie:'QA', status:'Open', gemeld:-1, prioriteit:'Midden'}
+];
+
+const TD_WERKORDERS = [
+  {id:'wo-1', titel:'Ring vastgelopen in de ringen afhaal', afdeling:'Productie', lijn:'Lijn B', asset:'Ringen afhaalmachine — Lijn B', status:'Opgelost', prioriteit:'Midden', technicus:'Dennis (TD)', gemeldOp:'17 jun 14:10', opgelostOp:'17 jun 14:35', downtimeProductie:15, downtimeWerkelijk:22, onderdelen:'Geleiding teruggeplaatst, geen vervangend onderdeel nodig'},
+  {id:'wo-2', titel:'Kaaklift inpak: platen scheef en vastgelopen, buffer vol', afdeling:'Inpak', lijn:'Lijn C', asset:'Kaaklift — Lijn C', status:'Wacht op onderdeel', prioriteit:'Midden', technicus:'Mark (TD)', gemeldOp:'18 jun 21:05', opgelostOp:null, downtimeProductie:120, downtimeWerkelijk:null, onderdelen:'Wacht op vervangende geleidingslagers — besteld, levering maandag'},
+  {id:'wo-3', titel:'Oven leeg-platen stopte met draaien', afdeling:'Inpak', lijn:'Lijn C', asset:'Oven leeg-platen transport — Lijn C', status:'Opgelost', prioriteit:'Laag', technicus:'Mark (TD)', gemeldOp:'18 jun 22:40', opgelostOp:'18 jun 22:52', downtimeProductie:15, downtimeWerkelijk:12, onderdelen:'Herstart kaak, geen onderdeel nodig'},
+  {id:'wo-4', titel:'Wals Lijn A draait onregelmatig', afdeling:'Productie', lijn:'Lijn A', asset:'Wals — Lijn A', status:'Gemeld', prioriteit:'Midden', technicus:null, gemeldOp:'19 jun 06:50', opgelostOp:null, downtimeProductie:null, downtimeWerkelijk:null, onderdelen:'Nog niet opgepakt'}
+];
+
+const ARCHIEF = [
+  {datum:'12 dec 2025', shift:'Ochtend', afdeling:'Productie', tl:'Richard', status:'Afgesloten', afgeslotenOp:'13 dec 2025', snapshot:null},
+  {datum:'05 nov 2025', shift:'Avond', afdeling:'Inpak', tl:'Emilia', status:'Afgesloten', afgeslotenOp:'06 nov 2025', snapshot:null},
+  {datum:'22 okt 2025', shift:'Nacht', afdeling:'Productie', tl:'Jorn', status:'Afgesloten', afgeslotenOp:'23 okt 2025', snapshot:null}
+];
+
+const formState = { Productie: maakLegeShift('Productie'), Inpak: maakLegeShift('Inpak') };
+
+let GESCHIEDENIS = {
+  Productie: [{
+    datum:'2026-06-18', shift:'Middag', teamleider:'Richard', status:'Overgedragen', overgedragenDoor:'Richard', overgedragenOp:'18 jun 18:05',
+    lijnen:{
+      'Deegmakerij': {afwijkingen:[{omschrijving:'Verkeerd recept geproduceerd', impact:'200 kg onbruikbaar deeg', oorzaak:'Late planningswijziging waarbij de productieaantallen zijn verminderd door een gewijzigde order van de klant.', correctief:'Deeg bewaren en wegwerken bij de volgende run', preventief:'', wasteKg:200, reworkKg:0, stilstandMin:0, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'Planner', prioriteit:'Midden', toegewezen:'', gemeldOp:'18 jun', dagoverlegId:'va-1'}]},
+      'Lijn A': {afwijkingen:[{omschrijving:'Algemene lijnwaste — geen specifieke afwijking gemeld door teamleider', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:30, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}]},
+      'Lijn B': {afwijkingen:[{omschrijving:'Ring is vastgelopen in de ringen afhaal', impact:'600 kg waste', oorzaak:'', correctief:'TD erbij gehaald, die heeft de geleiding terug geplaatst', preventief:'', wasteKg:11, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'TD', prioriteit:'Midden', toegewezen:'', gemeldOp:'17 jun'}]},
+      'Lijn C': {afwijkingen:[
+        {omschrijving:'Koeken zonder amandelen', impact:'20 minuten rework', oorzaak:'Vergeten de amandelmachine aan te zetten.', correctief:'Amandelmachine aangezet en inpak geïnformeerd over de koeken zonder amandel', preventief:'Opstart checklist aanpassen met check amandelmachine.', wasteKg:0, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'},
+        {omschrijving:'Inpakgewicht ligt 4% boven nominaal', impact:'4% overgewicht', oorzaak:'Productiestandaarden zijn incorrect', correctief:'Deeggewicht 10 gram omlaag gezet, vullinggewicht 5 gram omlaag gezet per rij', preventief:'Productiestandaard wijzigen', wasteKg:0, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'R&D', prioriteit:'Laag', toegewezen:'', gemeldOp:'12 jun'},
+        {omschrijving:'Algemene lijnwaste — geen specifieke afwijking gemeld door teamleider', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:9, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}
+      ]}
+    },
+    veiligheid:[{categorie:'Voedselveiligheid', omschrijving:'Blauw plastic gevonden in de gevulde koeken', impact:'', oorzaak:'Een deel van een zak spijs is in de spijskuip beland. De spijsmaker heeft de zak kapot gesneden.', correctief:'Koeken geblokkeerd. Blokkadeformulier ingevuld. QA geïnformeerd.', preventief:'De spijsmaker trainen op het juist snijden van de zakken spijs.', vervolgactie:'QA', prioriteit:'Hoog', escalatieniveau:'Kritiek', gemeldOp:'18 jun', dagoverlegId:'va-4'}],
+    rondeGelopen:true, rondeMomenten:['17:00','20:00'], rondeReden:'',
+    actiesVolgendeShift:'Productielijn 2 voor donderdag omgedraaid i.v.m. amandelaroma over THT-verlenging. Alle jongens de HACCP-cursus gedaan.', notificaties:[]
+  }],
+  Inpak: [{
+    datum:'2026-06-18', shift:'Avond', teamleider:'Emilia', status:'Overgedragen', overgedragenDoor:'Emilia', overgedragenOp:'18 jun 23:45',
+    lijnen:{
+      'Lijn A': {afwijkingen:[{omschrijving:'Schoonmaak-gerelateerde waste en rework — geen specifieke afwijking gemeld', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:50, reworkKg:41, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}]},
+      'Lijn B': {afwijkingen:[{omschrijving:'Schoonmaak-waste en rework nog van de ochtendploeg — geen specifieke afwijking gemeld', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:16, reworkKg:58, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}]},
+      'Lijn C': {afwijkingen:[
+        {omschrijving:'Rb kano slechte kwaliteit (beide ploegen, 175 kg), Rb kano met schaafstel (150 kg)', impact:'325 kg rework', oorzaak:'RB kano slechte kwaliteit: af en toe koekjes met beschadigde bovenkant, te licht van gewicht met minder spijs. RB kano met schaafstel: 6 kratten (50 kg) in emmers gezet, rest overgewerkt of afgekeurd.', correctief:'', preventief:'', wasteKg:0, reworkKg:325, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Aandachtspunt', vervolgactie:'QA', prioriteit:'Midden', toegewezen:'', gemeldOp:'18 jun', dagoverlegId:'va-6'},
+        {omschrijving:'Kaaklift inpak: 2 platen bij sig. uitvoer scheef en vastgelopen', impact:'Buffer vol', oorzaak:'?', correctief:'TD gebeld, platen weggehaald en getest of alles weer werkt.', preventief:'?', wasteKg:0, reworkKg:0, stilstandMin:120, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'TD', prioriteit:'Midden', toegewezen:'', gemeldOp:'18 jun', dagoverlegId:'va-3'},
+        {omschrijving:'Oven leeg-platen stopte met draaien', impact:'15 min tijd verloren bij het wachten', oorzaak:'?', correctief:'TD gebeld, kaak opnieuw opgestart, daarna deed het weer.', preventief:'?', wasteKg:0, reworkKg:0, stilstandMin:15, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'TD', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'},
+        {omschrijving:'Resterende schoonmaak-waste en niet nader gespecificeerde stilstand (beide ploegen) — niet gekoppeld aan een individueel gelogde afwijking', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:102, reworkKg:18, stilstandMin:105, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}
+      ]}
+    },
+    veiligheid:[
+      {categorie:'Planning', omschrijving:'Orders op Lijn C zijn af.', impact:'', oorzaak:'', correctief:'', preventief:'', vervolgactie:'Geen', prioriteit:null, escalatieniveau:null, gemeldOp:'18 jun'},
+      {categorie:'Planning', omschrijving:'Order op Lijn A is af.', impact:'', oorzaak:'', correctief:'', preventief:'', vervolgactie:'Geen', prioriteit:null, escalatieniveau:null, gemeldOp:'18 jun'}
+    ],
+    rondeGelopen:false, rondeMomenten:[], rondeReden:'Ronde is niet gelopen omdat ik op Lijn 3 als operator stond (te druk om Sergio de lijn te laten draaien) + pauzes overnemen (een persoon niet gekomen, ontslag genomen; een persoon vrij).',
+    actiesVolgendeShift:'Lijn 3 goed kruimelvrij, Lijn A kruimelvrij — doorgeven aan Jorn om schoonmaak af te maken op zaterdag.',
+    voorbereiding:'Display dozen klaargezet, Lijn B klaargezet voor maandag, Lijn C klaargezet voor maandag, folie klaargezet.', notificaties:[]
+  }]
+};
+
+function dagenOpen(gemeldOffset){ return Math.max(0, -gemeldOffset); }
+function escalatieKlasse(dagen){
+  if(dagen<=0) return CONFIG.escalatie[0];
+  if(dagen<=1) return CONFIG.escalatie[1];
+  if(dagen<=3) return CONFIG.escalatie[2];
+  return CONFIG.escalatie[3];
+}
+function statusKleur(s){ return s==='Open' ? '#C0392B' : s==='In behandeling' ? '#D97706' : '#2c694e'; }
+
+// ============ PAGINA / NAVIGATIE ============
+function switchPage(page){
+  ['shift','dagoverleg','kpi','werkorders','geschiedenis','config'].forEach(function(p){
+    document.getElementById('page-'+p).classList.toggle('active', p===page);
+    const nav = document.getElementById('navlink-'+p);
+    if(nav) nav.classList.toggle('active', p===page);
+    const navm = document.getElementById('navmobile-'+p);
+    if(navm) navm.classList.toggle('active', p===page);
+  });
+  const titels = {shift:'Huidige Shift', dagoverleg:'Dagoverleg', kpi:'KPI Dashboard', werkorders:'TD Werkorders', geschiedenis:'Geschiedenis', config:'Configuratie'};
+  document.getElementById('mobile-page-title').textContent = titels[page];
+  document.getElementById('desktop-page-title').innerHTML = page==='shift'
+    ? 'Huidige Shift — <span id="desktop-page-afdeling">'+huidigeAfdeling+'</span>'
+    : titels[page];
+  if(page==='dagoverleg') renderDagoverleg();
+  if(page==='kpi') renderKpiDashboard();
+  if(page==='werkorders') renderWerkorders();
+  if(page==='geschiedenis') renderGeschiedenis();
+  if(page==='shift') renderHuidigeShift();
+  if(page==='config') renderConfigPagina();
+  document.getElementById('shift-sticky-footer').style.display = page==='shift' ? 'flex' : 'none';
+}
+function switchAfdeling(afdeling){
+  huidigeAfdeling = afdeling;
+  ['afd-btn-Productie','afd-btn-Inpak','afd-btn-mobile-Productie','afd-btn-mobile-Inpak'].forEach(function(id){
+    const el = document.getElementById(id);
+    if(el) el.classList.toggle('active', id.indexOf(afdeling)!==-1);
+  });
+  const dpa = document.getElementById('desktop-page-afdeling');
+  if(dpa) dpa.textContent = afdeling;
+  renderHuidigeShift();
+}
+
+// ============ DAGOVERLEG ============
+function renderDagoverleg(){
+  const open = VERVOLGACTIES.filter(function(v){return v.status!=='Afgerond';});
+  const actieveBlokkades = [];
+  ['Productie','Inpak'].forEach(function(afdeling){
+    formState[afdeling].blokkades.forEach(function(b, idx){
+      if(b.status==='Actief') actieveBlokkades.push(Object.assign({afdeling:afdeling, idx:idx}, b));
+    });
+  });
+  ['count-open'].forEach(function(id){
+    const el = document.getElementById(id);
+    const totaal = open.length + actieveBlokkades.length;
+    el.textContent = totaal;
+    el.classList.toggle('zero', totaal===0);
+  });
+
+  document.getElementById('dagoverleg-blokkades').innerHTML = actieveBlokkades.length ? (
+    '<div class="flex items-center gap-2 mb-2 px-1">'
+    + '<span class="material-symbols-outlined text-danger text-[18px]">block</span>'
+    + '<span class="text-section-header">Actieve blokkades (QA)</span>'
+    + '<span class="tab-count">'+actieveBlokkades.length+'</span></div>'
+    + actieveBlokkades.map(function(b){
+        return '<div class="bg-paper border border-border border-l-4 border-l-danger bg-danger-pale/30 rounded-lg p-3 mb-2 flex flex-wrap items-center gap-3">'
+          + '<div class="flex-1 min-w-[200px]"><p class="text-sm font-bold flex items-center gap-2 flex-wrap"><span class="prioriteit-badge prioriteit-Hoog">'+esc(b.type)+'</span>'+esc(b.artikel)+'</p>'
+          + '<p class="text-xs text-muted mt-0.5 font-mono-num">'+b.afdeling+' · Batch/THT '+esc(b.batchTht)+(b.locatie?' · '+esc(b.locatie):'')+'</p></div>'
+          + '<button class="text-secondary text-xs font-bold hover:underline" onclick="handleVrijgevenBlokkade(\''+b.afdeling+'\','+b.idx+')">✓ Vrijgeven</button></div>';
+      }).join('')
+  ) : '';
+
+  const groepen = {};
+  CONFIG.vervolgactieRoutes.forEach(function(r){ groepen[r.code]=[]; });
+  open.forEach(function(v){ (groepen[v.vervolgactie]=groepen[v.vervolgactie]||[]).push(v); });
+
+  let html = '';
+  CONFIG.vervolgactieRoutes.forEach(function(route){
+    const items = groepen[route.code];
+    if(!items || items.length===0) return;
+    html += '<div class="mb-6"><div class="flex items-center gap-2 mb-2 px-1">'
+      + '<span class="font-mono-num text-[11px] font-bold px-2.5 py-1 rounded text-white" style="background:'+route.kleur+'">'+route.code+'</span>'
+      + '<span class="text-xs text-muted">'+route.naam+' · '+items.length+' openstaand</span></div>';
+    items.sort(function(a,b){ return (b.prioriteit==='Hoog')-(a.prioriteit==='Hoog') || dagenOpen(b.gemeld)-dagenOpen(a.gemeld); });
+    items.forEach(function(v){
+      const dagen = dagenOpen(v.gemeld);
+      const eclass = escalatieKlasse(dagen);
+      const isKritiek = v.prioriteit==='Hoog';
+      const kleur = isKritiek ? '#C0392B' : eclass.kleur;
+      const dagenLabel = dagen===0 ? 'Nieuw' : dagen+' '+eclass.label;
+      html += '<div class="bg-paper border border-border rounded-lg p-3 mb-2 flex flex-wrap items-center gap-3 border-l-4'+(isKritiek?' bg-danger-pale':'')+'" style="border-left-color:'+kleur+(isKritiek?';animation:pulse 1.8s ease-in-out infinite':'')+'">'
+        + '<div class="flex-1 min-w-[200px]"><p class="text-sm font-bold flex items-center gap-2 flex-wrap">'+(isKritiek?'<span class="escalatie-badge prioriteit-Hoog">Kritiek</span>':'')+esc(v.titel)+'</p>'
+        + '<p class="text-xs text-muted mt-0.5">'+v.afdeling+' · '+v.lijn+(!isKritiek?' <span class="escalatie-badge prioriteit-'+v.prioriteit+'">'+v.prioriteit+'</span>':'')+'</p></div>'
+        + '<span class="text-[10px] font-bold uppercase px-2 py-1 rounded text-white" style="background:'+statusKleur(v.status)+'">'+v.status+'</span>'
+        + '<span class="font-mono-num text-[11px] font-bold px-2.5 py-1 rounded" style="background:'+kleur+'22;color:'+kleur+'">'+dagenLabel+'</span>'
+        + '<button class="text-secondary text-xs font-bold hover:underline" onclick="handleAfronden(\''+v.id+'\',\''+route.code+'\')">Afronden</button></div>';
+    });
+    html += '</div>';
+  });
+  document.getElementById('dagoverleg-content').innerHTML = html || '<p class="text-sm text-muted italic">Geen openstaande vervolgacties.</p>';
+}
+function handleAfronden(id, routeCode){
+  openAftekenen('Vervolgactie afronden — '+routeCode, 'Bevestig met je ingelogde account dat deze actie is afgerond.', function(){
+    const item = VERVOLGACTIES.find(function(x){return x.id===id;});
+    if(item) item.status='Afgerond';
+    renderDagoverleg();
+  });
+}
+
+function bepaalEscalatieniveau(prioriteit, drempelOverschreden){
+  if(prioriteit==='Hoog') return 'Kritiek';
+  if(drempelOverschreden || prioriteit==='Midden') return 'Aandachtspunt';
+  return 'Routinematig';
+}
+function pushNaarDagoverleg(afdeling, lijn, titel, vervolgactie, escalatieniveau, prioriteit){
+  const id = 'va-live-'+Date.now()+'-'+Math.floor(Math.random()*1000);
+  VERVOLGACTIES.push({id:id, titel:titel, afdeling:afdeling, lijn:lijn, vervolgactie:vervolgactie, status:'Open', gemeld:0, prioriteit: escalatieniveau==='Kritiek' ? 'Hoog' : prioriteit});
+  renderDagoverleg();
+  return id;
+}
+function pushOfUpdateDagoverleg(bestaandId, afdeling, lijn, titel, vervolgactie, escalatieniveau, prioriteit){
+  const prioriteitVoorDagoverleg = escalatieniveau==='Kritiek' ? 'Hoog' : prioriteit;
+  if(bestaandId){
+    const bestaand = VERVOLGACTIES.find(function(x){return x.id===bestaandId;});
+    if(bestaand){
+      bestaand.titel=titel; bestaand.afdeling=afdeling; bestaand.lijn=lijn; bestaand.vervolgactie=vervolgactie; bestaand.prioriteit=prioriteitVoorDagoverleg;
+      renderDagoverleg();
+      return bestaandId;
+    }
+  }
+  return pushNaarDagoverleg(afdeling, lijn, titel, vervolgactie, escalatieniveau, prioriteit);
+}
+function haalDagoverlegId(ctx){
+  try{
+    if(ctx.type==='lijn') return formState[ctx.afdeling].lijnen[ctx.lijn].afwijkingen[ctx.idx].dagoverlegId || null;
+    return formState[ctx.afdeling].veiligheid[ctx.idx].dagoverlegId || null;
+  } catch(e){ return null; }
+}
+
+function berekenLijnTotalen(afdeling, lijn){
+  const afw = formState[afdeling].lijnen[lijn].afwijkingen;
+  return afw.reduce(function(t,a){ t.waste+=Number(a.wasteKg)||0; t.rework+=Number(a.reworkKg)||0; t.stilstand+=Number(a.stilstandMin)||0; return t; }, {waste:0,rework:0,stilstand:0});
+}
+
+// ============ HUIDIGE SHIFT ============
+function renderHuidigeShift(){
+  const afdeling = huidigeAfdeling;
+  const shift = formState[afdeling];
+  shift.teamleider = INGELOGD ? INGELOGD.naam : '';
+
+  document.getElementById('shift-datum').textContent = formatDatumNL(shift.datum);
+  document.getElementById('shift-shift').textContent = shift.shift;
+  document.getElementById('shift-tl').textContent = INGELOGD ? INGELOGD.naam : '— niet ingelogd —';
+
+  const pill = document.getElementById('shift-status-pill');
+  pill.textContent = shift.status;
+  pill.className = 'status-pill status-'+shift.status;
+
+  const footerActions = document.getElementById('footer-overdracht-actions');
+  footerActions.innerHTML = INGELOGD
+    ? '<button class="bg-secondary text-on-secondary px-5 py-2.5 rounded-lg text-label-ui font-bold hover:opacity-90 transition-opacity flex items-center gap-2" onclick="handleOverdracht(huidigeAfdeling)"><span class="material-symbols-outlined text-[18px]">verified</span> Start Overdracht</button>'
+    : '<button class="bg-surface-container border border-border text-muted px-5 py-2.5 rounded-lg text-label-ui font-bold" disabled>Log in om over te dragen</button>';
+  document.getElementById('footer-afdeling-label').textContent = afdeling+' — '+shift.shift;
+  document.getElementById('footer-status-label').textContent = shift.status;
+  document.getElementById('shift-audit').textContent = 'Actieve shift — nog niet overgedragen.';
+
+  document.getElementById('uitgelogd-banner').style.display = INGELOGD ? 'none' : 'flex';
+  document.getElementById('shift-edit-zone').classList.toggle('locked-hint', !INGELOGD);
+
+  document.getElementById('shift-voorbereiding-wrap').style.display = afdeling==='Inpak' ? '' : 'none';
+
+  const lijnen = CONFIG.productielijnen[afdeling];
+  document.getElementById('shift-lijnen').innerHTML = lijnen.map(function(lijn){
+    const totalen = berekenLijnTotalen(afdeling, lijn);
+    const afw = shift.lijnen[lijn].afwijkingen;
+    const kritiekAanwezig = afw.some(function(a){return a.escalatieniveau==='Kritiek';});
+    const dotKleur = kritiekAanwezig ? 'bg-danger animate-pulse' : (afw.length ? 'bg-warning' : 'bg-secondary');
+    const huidigeStatus = shift.lijnen[lijn].schoonmaakStatus;
+    const statusKnoppen = CONFIG.schoonmaakStatussen.map(function(s){
+      const actief = huidigeStatus===s.code;
+      return '<button class="flex-1 py-1.5 rounded text-[10px] font-bold uppercase border transition-colors" style="'+(actief?'background:'+s.kleur+';color:#fff;border-color:'+s.kleur:'border-color:var(--border, #E5E0D8);color:'+s.kleur)+'" onclick="setSchoonmaakStatus(\''+afdeling+'\',\''+lijn+'\',\''+s.code+'\')">'+s.label+'</button>';
+    }).join('');
+    const items = afw.map(function(a, idx){
+      const chips = [];
+      if(a.wasteKg) chips.push('Waste '+a.wasteKg+'kg');
+      if(a.reworkKg) chips.push('Rework '+a.reworkKg+'kg');
+      if(a.stilstandMin) chips.push('Stilstand '+a.stilstandMin+'min');
+      if(a.extraWerkMin) chips.push('Extra werk '+a.extraWerkMin+'min');
+      return '<div class="p-2.5 border-l-4 rounded mb-2 flex justify-between items-start gap-2 '+(a.escalatieniveau==='Kritiek'?'border-l-danger bg-danger-pale/40':a.escalatieniveau==='Aandachtspunt'?'border-l-warning bg-warning-pale/30':'border-l-border bg-surface-container-low')+'">'
+        + '<div class="min-w-0"><p class="text-xs font-bold truncate">'+esc(a.omschrijving)+'</p>'
+        + '<p class="text-[10px] text-muted mt-0.5 flex items-center gap-1.5 flex-wrap"><span class="escalatie-badge escalatie-'+a.escalatieniveau+'">'+a.escalatieniveau+'</span><span>'+a.vervolgactie+'</span>'+(a.toegewezen?'<span>→ '+esc(a.toegewezen)+'</span>':'')+'</p>'
+        + (chips.length ? '<p class="text-[10px] text-muted mt-1 font-mono-num">'+chips.join(' · ')+'</p>' : '')
+        + '</div>'
+        + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink shrink-0" onclick="openBewerkAfwijking(\''+afdeling+'\',\''+lijn+'\','+idx+')">edit</span>'
+        + '</div>';
+    }).join('');
+    return '<div class="bg-paper border border-border rounded-lg overflow-hidden flex flex-col">'
+      + '<div class="bg-surface-container px-card-padding py-2 flex justify-between items-center border-b border-border">'
+      + '<h3 class="text-base font-bold text-center flex-1">'+lijn+'</h3><span class="w-2.5 h-2.5 rounded-full '+dotKleur+'"></span></div>'
+      + '<div class="p-card-padding flex-1">'
+      + '<div class="grid grid-cols-3 gap-2 mb-3">'
+      + '<div class="text-center p-2.5 bg-surface-container-low rounded-lg">'
+      +   '<p class="text-[9px] text-muted uppercase tracking-wide font-bold flex items-center justify-center gap-1 mb-1"><span class="material-symbols-outlined text-[12px]">delete</span>Waste</p>'
+      +   '<p class="font-mono-num text-base font-bold text-ink leading-none">'+totalen.waste+'<span class="text-[10px] text-muted font-normal">kg</span></p></div>'
+      + '<div class="text-center p-2.5 bg-surface-container-low rounded-lg">'
+      +   '<p class="text-[9px] text-muted uppercase tracking-wide font-bold flex items-center justify-center gap-1 mb-1"><span class="material-symbols-outlined text-[12px]">build</span>Rework</p>'
+      +   '<p class="font-mono-num text-base font-bold text-ink leading-none">'+totalen.rework+'<span class="text-[10px] text-muted font-normal">kg</span></p></div>'
+      + '<div class="text-center p-2.5 bg-surface-container-low rounded-lg">'
+      +   '<p class="text-[9px] text-muted uppercase tracking-wide font-bold flex items-center justify-center gap-1 mb-1"><span class="material-symbols-outlined text-[12px]">pause_circle</span>Stilstand</p>'
+      +   '<p class="font-mono-num text-base font-bold text-ink leading-none">'+totalen.stilstand+'<span class="text-[10px] text-muted font-normal">m</span></p></div>'
+      + '</div>'
+      + '<div class="mb-3"><p class="text-[10px] text-muted mb-1">Schoonmaak / 5S bij overdracht</p><div class="flex gap-1">'+statusKnoppen+'</div></div>'
+      + items
+      + '<button class="dashed-slot rounded-lg p-3 w-full flex flex-col items-center justify-center text-muted hover:text-secondary transition-colors mt-1" onclick="openNieuweAfwijking(\''+afdeling+'\',\''+lijn+'\')">'
+      + '<span class="material-symbols-outlined mb-0.5">add_circle</span><span class="text-[11px]">Afwijking loggen</span></button>'
+      + '</div></div>';
+  }).join('');
+
+  let lototoCount = 0;
+  const vgItems = shift.veiligheid.map(function(v, idx){
+    const isPlanning = v.categorie==='Planning';
+    const isLototo = v.categorie==='LOTOTO / Werkvergunning';
+    if(isLototo) lototoCount++;
+    return '<div class="p-2.5 border-l-4 rounded mb-2 flex justify-between items-start gap-2 '+(isPlanning?'border-l-note bg-note-pale/30':v.escalatieniveau==='Kritiek'?'border-l-danger bg-danger-pale/40':v.escalatieniveau==='Aandachtspunt'?'border-l-warning bg-warning-pale/30':isLototo?'border-l-warning bg-warning-pale/20':'border-l-border bg-surface-container-low')+'">'
+      + '<div class="min-w-0"><p class="text-xs font-bold">'+(isPlanning?'<span class="mededeling-tag mr-1">Mededeling</span>':'')+(isLototo?'<span class="material-symbols-outlined text-[12px] text-warning mr-1 align-middle">lock</span>':'')+(v.vreemdVoorwerp?'<span class="prioriteit-badge prioriteit-Hoog mr-1">Vreemd voorwerp</span>':'')+esc(v.omschrijving)+'</p>'
+      + '<p class="text-[10px] text-muted mt-0.5 flex items-center gap-1.5 flex-wrap"><span>'+v.categorie+'</span>'+(!isPlanning?'<span class="escalatie-badge escalatie-'+v.escalatieniveau+'">'+v.escalatieniveau+'</span>':'')+'<span>'+v.vervolgactie+'</span>'+(v.foto?'<span class="material-symbols-outlined text-[12px] text-secondary" title="Foto bijgevoegd">photo_camera</span>':'')+'</p>'
+      + (v.foto ? '<img src="'+v.foto+'" class="rounded border border-border max-h-16 mt-1.5 block">' : '')
+      + '</div>'
+      + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink shrink-0" onclick="openBewerkVeiligheid(\''+afdeling+'\','+idx+')">edit</span>'
+      + '</div>';
+  }).join('') || '<p class="text-xs text-muted italic">Geen items gelogd.</p>';
+  document.getElementById('shift-veiligheid').innerHTML = vgItems;
+  const lototoBadge = document.getElementById('count-lototo');
+  lototoBadge.textContent = lototoCount;
+  lototoBadge.classList.toggle('zero', lototoCount===0);
+
+  renderQaSectie(afdeling);
+  renderTijdlijn(afdeling);
+  renderRondeOverzicht(afdeling);
+  renderVorigeShiftKnop(afdeling);
+
+  const persEl = document.getElementById('shift-personele-bezetting');
+  if(persEl && document.activeElement!==persEl) persEl.value = shift.personeleBezetting||'';
+  const algEl = document.getElementById('shift-algemene-punten');
+  if(algEl && document.activeElement!==algEl) algEl.value = shift.algemenePuntenDagoverleg||'';
+
+  const actiesEl = document.getElementById('shift-acties');
+  if(actiesEl && document.activeElement!==actiesEl) actiesEl.value = shift.actiesVolgendeShift;
+  if(afdeling==='Inpak'){
+    const v = document.getElementById('shift-voorbereiding');
+    if(v && document.activeElement!==v) v.value = shift.voorbereiding||'';
+  }
+}
+function setSchoonmaakStatus(afdeling, lijn, status){
+  if(!INGELOGD) return;
+  const huidig = formState[afdeling].lijnen[lijn].schoonmaakStatus;
+  formState[afdeling].lijnen[lijn].schoonmaakStatus = (huidig===status) ? null : status;
+  renderHuidigeShift();
+}
+
+function tijdNu(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+
+// Ronde is nu een knop die een actie logt, geen handmatige tijd-invoer meer: één tik = nu meteen
+// vastgelegd. Mag meerdere keren per shift ('s ochtends, 's middags, ...). Vereist aantal komt uit
+// CONFIG (straks de SharePoint Config-lijst) en is een richtlijn/teller, geen harde blokkade.
+function renderRondeOverzicht(afdeling){
+  const fs = formState[afdeling];
+  const cont = document.getElementById('shift-ronde');
+  if(!cont) return;
+  const aantal = (fs.rondeMomenten||[]).length;
+  const vereist = CONFIG.rondeVereistAantal;
+  const voldaan = aantal>=vereist;
+  let html = '<div class="flex gap-2 mb-3">'
+    + '<button class="flex-1 px-4 py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 border-secondary bg-secondary text-on-secondary hover:opacity-90 transition-opacity" onclick="handleRondeGelopen(\''+afdeling+'\')"><span class="material-symbols-outlined text-[20px]">verified_user</span> Ronde gelopen — nu</button>'
+    + '<button class="px-4 py-3 rounded-lg border-2 text-sm font-bold border-danger text-danger hover:bg-danger-pale transition-colors" onclick="handleRondeNietGelopen(\''+afdeling+'\')">✕ Niet gelopen</button>'
+    + '</div>';
+  html += '<div class="flex items-center gap-2 mb-2 flex-wrap">'
+    + '<span class="text-xs font-bold '+(voldaan?'text-secondary':'text-muted')+'">'+(voldaan?'<span class="material-symbols-outlined text-[14px] align-middle">check_circle</span> ':'')+'Rondes gelogd: '+aantal+' van '+vereist+' verplicht</span>'
+    + '</div>';
+  if(aantal>0){
+    html += '<div class="flex gap-2 flex-wrap mb-2">' + fs.rondeMomenten.map(function(tijd, i){
+      return '<span class="inline-flex items-center gap-1.5 bg-success-pale border border-secondary text-secondary rounded-full pl-3 pr-1.5 py-1 text-xs font-mono-num">'+tijd
+        + '<button class="w-4 h-4 rounded-full hover:bg-secondary/20 flex items-center justify-center text-[10px]" onclick="removeRondeMoment(\''+afdeling+'\','+i+')" title="Verwijderen">✕</button></span>';
+    }).join('') + '</div>';
+  }
+  if(fs.rondeReden && fs.rondeReden.trim()!==''){
+    html += '<div class="bg-danger-pale text-danger rounded-lg p-2.5 text-xs"><b>Niet (volledig) gelopen:</b> '+esc(fs.rondeReden)+'</div>';
+  }
+  cont.innerHTML = html;
+}
+function handleRondeGelopen(afdeling){
+  if(!INGELOGD) return;
+  formState[afdeling].rondeMomenten = formState[afdeling].rondeMomenten || [];
+  formState[afdeling].rondeMomenten.push(tijdNu());
+  renderRondeOverzicht(afdeling);
+  renderHuidigeShift();
+}
+function removeRondeMoment(afdeling, idx){
+  formState[afdeling].rondeMomenten.splice(idx,1);
+  renderRondeOverzicht(afdeling);
+  renderHuidigeShift();
+}
+let rondeRedenAfdeling = null;
+function handleRondeNietGelopen(afdeling){
+  if(!INGELOGD) return;
+  rondeRedenAfdeling = afdeling;
+  document.getElementById('ronde-reden-tekst').value = formState[afdeling].rondeReden || '';
+  document.getElementById('ronde-reden-fout').classList.add('hidden');
+  openModal('modal-ronde-reden');
+}
+function bevestigRondeReden(){
+  const tekst = document.getElementById('ronde-reden-tekst').value.trim();
+  if(!tekst){ document.getElementById('ronde-reden-fout').classList.remove('hidden'); return; }
+  formState[rondeRedenAfdeling].rondeReden = tekst;
+  closeModal('modal-ronde-reden');
+  renderRondeOverzicht(rondeRedenAfdeling);
+  renderHuidigeShift();
+}
+function fs_update(afdeling, field, value){ formState[afdeling][field]=value; }
+
+function handleOverdracht(afdeling){
+  const fs = formState[afdeling];
+  const meldingen = controleerNotificaties(fs);
+  const legeShift = Object.keys(fs.lijnen).every(function(l){ return fs.lijnen[l].afwijkingen.length===0; })
+    && fs.veiligheid.length===0 && fs.blokkades.length===0 && fs.eWegingen.length===0;
+  let uitleg = 'Bevestig met je ingelogde account: deze shift wordt afgesloten en alleen-lezen — de volgende shift ziet \'m via "Vorige shift bekijken".';
+  if(meldingen.length) uitleg += ' Verstuurt ook '+meldingen.length+' Power Automate-notificatie'+(meldingen.length>1?'s':'')+' (zie devtools-console).';
+  openAftekenen('Shift overdragen — '+afdeling, uitleg, async function(){
+    fs.status='Overgedragen'; fs.overgedragenDoor = fs.teamleider || INGELOGD.naam; fs.overgedragenOp=tijdNu(); fs.notificaties=meldingen;
+    fs.gembaAfgestemd = true;
+    if(meldingen.length){ console.group('Power Automate — notificaties bij overdracht ('+afdeling+')'); meldingen.forEach(function(m){console.log(m);}); console.groupEnd(); }
+    await logSharePointPayload(afdeling, 'Overgedragen');
+    if(GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling].length>0) verplaatsNaarArchief(afdeling, GESCHIEDENIS[afdeling][0]);
+    GESCHIEDENIS[afdeling] = [fs];
+    const actieveBlokkades = fs.blokkades.filter(function(b){return b.status==='Actief';}).map(function(b){return Object.assign({}, b);});
+    formState[afdeling] = maakLegeShift(afdeling);
+    formState[afdeling].blokkades = actieveBlokkades;
+    renderHuidigeShift();
+  }, true, legeShift);
+}
+function verplaatsNaarArchief(afdeling, snapshot){
+  ARCHIEF.unshift({datum:snapshot.datum, shift:snapshot.shift, afdeling:afdeling, tl:snapshot.teamleider||'—', status:'Afgesloten', afgeslotenOp:snapshot.overgedragenOp, snapshot:snapshot});
+}
+function controleerNotificaties(fs){
+  const meldingen = [];
+  fs.veiligheid.forEach(function(v){
+    if(v.categorie==='Veiligheid' || v.categorie==='Voedselveiligheid') meldingen.push({onderwerp:v.categorie, omschrijving:v.omschrijving, naar:CONFIG.notificatieRouting[v.categorie], kanaal:'e-mail (Power Automate)'});
+  });
+  Object.keys(fs.lijnen).forEach(function(lijn){
+    fs.lijnen[lijn].afwijkingen.forEach(function(a){
+      if(a.escalatieniveau==='Kritiek') meldingen.push({onderwerp:'Kritieke afwijking — '+lijn, omschrijving:a.omschrijving, naar:CONFIG.notificatieRouting.KritiekeAfwijking, kanaal:'e-mail (Power Automate)'});
+    });
+  });
+  return meldingen;
+}
+function renderVorigeShiftKnop(afdeling){
+  const btn = document.getElementById('vorige-shift-btn');
+  if(!btn) return;
+  const log = GESCHIEDENIS[afdeling];
+  const s = log && log[0];
+  if(!s){ btn.style.display='none'; return; }
+  const kritiek = telKritiek(s);
+  btn.style.display='';
+  btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">lock</span> Vorige shift bekijken' + (kritiek ? ' <span class="tab-count">'+kritiek+'</span>' : '');
+}
+function telKritiek(s){
+  let n = Object.keys(s.lijnen).reduce(function(t,l){ return t+s.lijnen[l].afwijkingen.filter(function(a){return a.escalatieniveau==='Kritiek';}).length; },0);
+  n += s.veiligheid.filter(function(v){return v.escalatieniveau==='Kritiek';}).length;
+  return n;
+}
+
+// ============ SHIFT-DETAIL (gedeeld: Vorige shift + Geschiedenis) ============
+function bouwShiftDetailHtml(s){
+  if(!s) return '<p class="text-sm text-muted italic">Geen gedetailleerde data beschikbaar voor deze shift — dit voorbeeld dateert van vóór de gedigitaliseerde rapportage.</p>';
+  const lijnTotalenTekst = Object.keys(s.lijnen).map(function(lijn){
+    const t = s.lijnen[lijn].afwijkingen.reduce(function(acc,a){ acc.waste+=Number(a.wasteKg)||0; acc.rework+=Number(a.reworkKg)||0; acc.stilstand+=Number(a.stilstandMin)||0; return acc; },{waste:0,rework:0,stilstand:0});
+    const status = s.lijnen[lijn].schoonmaakStatus;
+    return lijn+': '+t.waste+'kg waste, '+t.rework+'kg rework, '+t.stilstand+'min stilstand'+(status?' · 5S: '+status:'');
+  }).join(' · ');
+  const rijen = [];
+  Object.keys(s.lijnen).forEach(function(lijn){
+    s.lijnen[lijn].afwijkingen.forEach(function(a){
+      const extra = a.extraWerkMin ? ' · Extra werk '+a.extraWerkMin+'min' : '';
+      rijen.push('<div class="flex items-center gap-2 py-1.5 border-t border-border text-xs flex-wrap"><span class="font-mono-num text-[10px] bg-surface-container px-1.5 py-0.5 rounded">'+lijn+'</span> '+esc(a.omschrijving)+extra+' <span class="escalatie-badge escalatie-'+a.escalatieniveau+'">'+a.escalatieniveau+'</span></div>');
+    });
+  });
+  s.veiligheid.forEach(function(v){
+    const isPlanning = v.categorie==='Planning';
+    rijen.push('<div class="py-1.5 border-t border-border text-xs"><div class="flex items-center gap-2 flex-wrap">'+(v.vreemdVoorwerp?'<span class="prioriteit-badge prioriteit-Hoog">Vreemd voorwerp</span>':'')+'<span class="font-mono-num text-[10px] bg-surface-container px-1.5 py-0.5 rounded">'+v.categorie+'</span> '+esc(v.omschrijving)+(isPlanning?' <span class="mededeling-tag">Mededeling</span>':' <span class="escalatie-badge escalatie-'+v.escalatieniveau+'">'+v.escalatieniveau+'</span>')+'</div>'
+      + (v.foto ? '<img src="'+v.foto+'" class="rounded border border-border max-h-20 mt-1.5 block">' : '')
+      + '</div>');
+  });
+  // Defensief op s.blokkades/s.eWegingen — oudere Archief-snapshots van vóór deze velden bestaan nog niet.
+  (s.blokkades||[]).forEach(function(b){
+    rijen.push('<div class="py-1.5 border-t border-border text-xs"><div class="flex items-center gap-2 flex-wrap"><span class="prioriteit-badge prioriteit-Hoog">'+esc(b.type)+'</span> '+esc(b.artikel)+' <span class="font-mono-num text-[10px] text-muted">('+esc(b.batchTht)+')</span> <span class="escalatie-badge '+(b.status==='Actief'?'escalatie-Kritiek':'escalatie-Routinematig')+'">'+b.status+'</span></div>'
+      + (b.foto ? '<img src="'+b.foto+'" class="rounded border border-border max-h-20 mt-1.5 block">' : '')
+      + '</div>');
+  });
+  (s.eWegingen||[]).forEach(function(e){
+    rijen.push('<div class="py-1.5 border-t border-border text-xs flex items-center gap-2 flex-wrap"><span class="text-[9.5px] font-bold text-white px-2 py-0.5 rounded-full uppercase" style="background:#1D4ED8">'+esc(e.soortUitstoot)+'</span> '+esc(e.artikelBatch)+' <span class="font-mono-num text-[10px] text-muted">('+e.lijn+' · '+esc(e.tijdvak)+')</span></div>');
+  });
+  return '<p class="text-xs text-muted mb-3">'+s.datum+' · '+s.shift+' · '+esc(s.teamleider||'(geen naam ingevuld)')+'</p>'
+    + '<div class="text-sm">'
+    + '<div class="py-1.5 text-xs">Overgedragen door <b>'+esc(s.overgedragenDoor)+'</b> · '+s.overgedragenOp
+    +   (s.gembaAfgestemd ? ' <span class="escalatie-badge escalatie-Routinematig">✓ Gemba afgestemd</span>' : '') + '</div>'
+    + '<div class="py-1.5 border-t border-border text-xs text-muted">'+lijnTotalenTekst+'</div>'
+    + (s.personeleBezetting ? '<div class="py-1.5 border-t border-border text-xs"><b>Personele bezetting:</b> '+esc(s.personeleBezetting)+'</div>' : '')
+    + (rijen.length ? rijen.join('') : '<div class="py-1.5 border-t border-border text-xs text-muted italic">Geen afwijkingen of meldingen gelogd.</div>')
+    + (s.algemenePuntenDagoverleg ? '<div class="bg-note-pale rounded p-2.5 mt-3 text-xs"><b>Algemene punten Dagoverleg:</b> '+esc(s.algemenePuntenDagoverleg)+'</div>' : '')
+    + (s.actiesVolgendeShift ? '<div class="bg-surface-container-low rounded p-2.5 mt-3 text-xs"><b>Voor de volgende shift:</b> '+esc(s.actiesVolgendeShift)+'</div>' : '')
+    + (s.notificaties && s.notificaties.length ? '<div class="text-[10.5px] text-info mt-2">📧 '+s.notificaties.length+' notificatie(s) verstuurd bij overdracht (zie console)</div>' : '')
+    + '</div>';
+}
+function openVorigeShiftModal(afdeling){
+  const log = GESCHIEDENIS[afdeling];
+  const s = log && log[0];
+  document.getElementById('shift-detail-titel').textContent = 'Vorige shift — '+afdeling;
+  document.getElementById('shift-detail-body').innerHTML = s ? bouwShiftDetailHtml(s) : '<p class="text-sm text-muted italic">Nog geen vorige shift overgedragen.</p>';
+  openModal('modal-shift-detail');
+}
+function openArchiefDetail(idx){
+  const r = ARCHIEF[idx];
+  if(!r) return;
+  document.getElementById('shift-detail-titel').textContent = r.datum+' · '+r.shift+' · '+r.afdeling;
+  document.getElementById('shift-detail-body').innerHTML = bouwShiftDetailHtml(r.snapshot);
+  openModal('modal-shift-detail');
+}
+
+// ============ GESCHIEDENIS (samenvoeging van Vorige-shift + Archief) ============
+function renderGeschiedenis(){
+  const items = [];
+  ['Productie','Inpak'].forEach(function(afdeling){
+    const s = GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling][0];
+    if(s) items.push({type:'huidig', afdeling:afdeling, datum:s.datum, shift:s.shift, tl:s.overgedragenDoor, status:'Overgedragen', op:s.overgedragenOp, snapshot:s});
+  });
+  ARCHIEF.forEach(function(r, idx){ items.push({type:'archief', afdeling:r.afdeling, datum:r.datum, shift:r.shift, tl:r.tl, status:r.status, op:r.afgeslotenOp, snapshot:r.snapshot, archiefIdx:idx}); });
+
+  const iconPerShift = {Ochtend:'wb_sunny', Middag:'wb_sunny', Avond:'wb_twilight', Nacht:'bedtime'};
+  document.getElementById('geschiedenis-lijst').innerHTML = items.map(function(it){
+    const isHuidig = it.type==='huidig';
+    const openFn = isHuidig ? "openVorigeShiftModal('"+it.afdeling+"')" : "openArchiefDetail("+it.archiefIdx+")";
+    return '<div class="bg-paper border border-border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border-l-4 '+(isHuidig?'border-l-info':'border-l-secondary')+(it.snapshot?'':' opacity-70 grayscale-[0.3]')+'">'
+      + '<div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">'
+      + '<div class="flex items-start gap-3">'
+      + '<div class="p-2 rounded flex items-center justify-center '+(isHuidig?'bg-info-pale':'bg-surface-container-high')+'"><span class="material-symbols-outlined '+(isHuidig?'text-info':'text-muted')+'">'+(iconPerShift[it.shift]||'schedule')+'</span></div>'
+      + '<div><h3 class="text-sm font-bold">'+it.shift+' shift — '+it.afdeling+'</h3><p class="text-xs text-muted">'+it.datum+(isHuidig?' · meest recente overdracht':'')+'</p></div>'
+      + '</div>'
+      + '<div class="flex flex-wrap items-center gap-3">'
+      + '<span class="status-pill status-'+(isHuidig?'Overgedragen':'Afgesloten')+'">'+it.status+'</span>'
+      + '<div class="text-right"><p class="text-[10px] text-muted uppercase">Door</p><p class="font-mono-num text-xs">'+esc((it.tl||'—').toUpperCase())+' · '+it.op+'</p></div>'
+      + '<button class="px-3 py-1.5 bg-paper border border-border rounded-lg text-xs hover:bg-surface-container transition-colors flex items-center gap-1.5" onclick="'+openFn+'"><span>Bekijk rapport</span><span class="material-symbols-outlined text-[16px]">open_in_new</span></button>'
+      + '</div></div></div>';
+  }).join('') || '<p class="text-sm text-muted italic">Nog geen geschiedenis.</p>';
+
+  const kritiekeItems = [];
+  ['Productie','Inpak'].forEach(function(afdeling){
+    const s = GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling][0];
+    if(!s) return;
+    Object.keys(s.lijnen).forEach(function(lijn){
+      s.lijnen[lijn].afwijkingen.forEach(function(a){ if(a.escalatieniveau==='Kritiek') kritiekeItems.push({titel:a.omschrijving, meta:afdeling+' · '+lijn+' · '+s.datum}); });
+    });
+    s.veiligheid.forEach(function(v){ if(v.escalatieniveau==='Kritiek') kritiekeItems.push({titel:v.omschrijving, meta:afdeling+' · '+v.categorie+' · '+s.datum}); });
+  });
+  document.getElementById('geschiedenis-kritiek').innerHTML = kritiekeItems.map(function(k){
+    return '<div class="p-3"><p class="text-xs font-bold">'+esc(k.titel)+'</p><p class="text-[10.5px] text-muted mt-0.5">'+k.meta+'</p></div>';
+  }).join('') || '<p class="text-xs text-muted italic p-3">Geen kritieke punten in de meest recente shiften.</p>';
+}
+
+// ============ KPI DASHBOARD (echte data — geen OEE/Availability, die hebben we niet) ============
+function renderKpiDashboard(){
+  const filter = document.getElementById('kpi-filter').value;
+  const afdelingen = filter==='Beide' ? ['Productie','Inpak'] : [filter];
+
+  let totWaste=0, totRework=0, totStilstand=0, totAfw=0, totKritiek=0;
+  const perLijn = [];
+  const perRoute = {};
+  CONFIG.vervolgactieRoutes.forEach(function(r){ perRoute[r.code]={naam:r.naam, kleur:r.kleur, waste:0}; });
+
+  afdelingen.forEach(function(afdeling){
+    CONFIG.productielijnen[afdeling].forEach(function(lijn){
+      const t = berekenLijnTotalen(afdeling, lijn);
+      const afw = formState[afdeling].lijnen[lijn].afwijkingen;
+      const kritiek = afw.filter(function(a){return a.escalatieniveau==='Kritiek';}).length;
+      totWaste+=t.waste; totRework+=t.rework; totStilstand+=t.stilstand; totAfw+=afw.length; totKritiek+=kritiek;
+      afw.forEach(function(a){ if(perRoute[a.vervolgactie]) perRoute[a.vervolgactie].waste += Number(a.wasteKg)||0; });
+      perLijn.push({afdeling:afdeling, lijn:lijn, waste:t.waste, rework:t.rework, stilstand:t.stilstand, aantal:afw.length, kritiek:kritiek});
+    });
+  });
+
+  let html = '<section class="grid grid-cols-1 md:grid-cols-3 gap-grid-gap mb-grid-gap">'
+    + kpiCard('Total Waste', totWaste, 'kg')
+    + kpiCard('Total Rework', totRework, 'kg')
+    + kpiCard('Stilstand', totStilstand, 'min')
+    + '</section>';
+
+  html += '<section class="bg-paper border border-border rounded-lg p-card-padding mb-grid-gap">'
+    + '<h3 class="text-section-header mb-4">Waste per vervolgactie-route</h3><div class="space-y-3">'
+    + CONFIG.vervolgactieRoutes.map(function(r){
+        const w = perRoute[r.code].waste;
+        const pct = totWaste>0 ? Math.round(w/totWaste*100) : 0;
+        if(w===0) return '';
+        return '<div class="space-y-1"><div class="flex justify-between text-label-ui"><span>'+r.naam+'</span><span class="font-mono-num">'+w+'kg ('+pct+'%)</span></div>'
+          + '<div class="h-5 bg-surface-container rounded-sm overflow-hidden"><div class="h-full" style="width:'+pct+'%;background:'+r.kleur+'"></div></div></div>';
+      }).join('') || '<p class="text-sm text-muted italic">Nog geen waste gelogd voor deze selectie.</p>'
+    + '</div></section>';
+
+  html += '<section class="bg-paper rounded-lg border border-border shadow-sm overflow-hidden">'
+    + '<div class="p-card-padding border-b border-border bg-surface-container-low"><h3 class="text-section-header text-primary">Lijnvergelijking</h3></div>'
+    + '<div class="overflow-x-auto"><table class="w-full text-left border-collapse">'
+    + '<thead><tr class="bg-surface-container text-metadata-caps text-muted uppercase">'
+    + '<th class="px-4 py-2.5">Lijn</th><th class="px-4 py-2.5">Afdeling</th><th class="px-4 py-2.5">Waste</th><th class="px-4 py-2.5">Rework</th><th class="px-4 py-2.5">Stilstand</th><th class="px-4 py-2.5">Afwijkingen</th><th class="px-4 py-2.5 text-right">Status</th></tr></thead><tbody>'
+    + perLijn.map(function(r){
+        const statusLabel = r.kritiek>0 ? 'Kritiek' : (r.aantal>0 ? 'Actief' : 'Stabiel');
+        const statusCls = r.kritiek>0 ? 'bg-danger-pale text-danger animate-pulse' : (r.aantal>0 ? 'bg-info-pale text-info' : 'bg-success-pale text-secondary');
+        return '<tr class="hover:bg-surface-container-low transition-colors border-b border-border last:border-0">'
+          + '<td class="px-4 py-3 font-bold text-primary">'+r.lijn+'</td><td class="px-4 py-3 text-muted">'+r.afdeling+'</td>'
+          + '<td class="px-4 py-3 font-mono-num">'+r.waste+'kg</td><td class="px-4 py-3 font-mono-num">'+r.rework+'kg</td><td class="px-4 py-3 font-mono-num">'+r.stilstand+'min</td>'
+          + '<td class="px-4 py-3 font-mono-num">'+r.aantal+(r.kritiek?' <span class="text-danger">('+r.kritiek+' kritiek)</span>':'')+'</td>'
+          + '<td class="px-4 py-3 text-right"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase '+statusCls+'">'+statusLabel+'</span></td></tr>';
+      }).join('')
+    + '</tbody></table></div></section>';
+
+  document.getElementById('kpi-content').innerHTML = html;
+}
+function kpiCard(label, value, eenheid){
+  return '<div class="bg-paper border border-border rounded-lg p-card-padding flex flex-col justify-between h-28">'
+    + '<span class="text-metadata-caps text-muted uppercase">'+label+'</span>'
+    + '<div class="flex items-baseline gap-2"><span class="text-[30px] font-mono-num leading-none">'+value+'</span><span class="text-sm text-muted">'+eenheid+'</span></div></div>';
+}
+
+// ============ TD WERKORDERS ============
+function renderWerkorders(){
+  const open = TD_WERKORDERS.filter(function(w){return w.status!=='Opgelost';});
+  const cel = document.getElementById('count-wo');
+  cel.textContent = open.length; cel.classList.toggle('zero', open.length===0);
+
+  const kolommen = CONFIG.tdStatussen;
+  let html = '<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-grid-gap items-start">';
+  kolommen.forEach(function(status){
+    const items = TD_WERKORDERS.filter(function(w){return w.status===status;});
+    html += '<div><div class="flex items-center gap-2 mb-3 px-1"><span class="text-metadata-caps text-muted uppercase">'+status+'</span><span class="text-[10px] font-bold bg-surface-container px-2 py-0.5 rounded-full">'+items.length+'</span></div>';
+    if(items.length===0) html += '<p class="text-xs text-muted italic px-1">Geen werkorders.</p>';
+    items.forEach(function(w){
+      const idx = kolommen.indexOf(w.status);
+      const volgende = kolommen[Math.min(idx+1, kolommen.length-1)];
+      const isLaatste = idx===kolommen.length-1;
+      let downtimeBlok = '';
+      if(w.downtimeProductie!=null || w.downtimeWerkelijk!=null){
+        downtimeBlok = '<div class="flex gap-2 bg-surface-container-low rounded p-2 mb-2 text-[10px]"><div>Productie meldde<b class="font-mono-num block">'+(w.downtimeProductie!=null?w.downtimeProductie+' min':'—')+'</b></div><div>TD-werkelijk<b class="font-mono-num block">'+(w.downtimeWerkelijk!=null?w.downtimeWerkelijk+' min':'lopend')+'</b></div></div>';
+      }
+      html += '<div class="bg-paper border border-border rounded-lg p-3 mb-3'+(w.prioriteit==='Hoog'?' border-l-4 border-l-danger bg-danger-pale/30':'')+'">'
+        + '<p class="text-xs font-bold mb-1">'+(w.prioriteit==='Hoog'?'<span class="escalatie-badge prioriteit-Hoog mr-1">Kritiek</span>':'')+w.titel+'</p>'
+        + '<span class="font-mono-num text-[10px] text-muted bg-surface-container px-1.5 py-0.5 rounded inline-block mb-2">'+w.asset+'</span>'
+        + '<div class="text-[10.5px] text-muted space-y-0.5 mb-2">'
+        +   '<p>'+w.afdeling+' · '+w.lijn+'</p><p>Gemeld: '+w.gemeldOp+'</p><p>Monteur: '+(w.technicus||'nog niet toegewezen')+'</p>'+(w.onderdelen?'<p>'+w.onderdelen+'</p>':'')
+        + '</div>'
+        + downtimeBlok
+        + (isLaatste
+            ? '<button class="w-full bg-surface-container text-muted py-1.5 rounded text-xs font-bold" disabled>✓ Opgelost — '+w.opgelostOp+'</button>'
+            : '<button class="w-full bg-secondary text-on-secondary py-1.5 rounded text-xs font-bold hover:opacity-90" onclick="handleWerkorderVolgende(\''+w.id+'\')">Volgende status → '+volgende+'</button>')
+        + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('werkorders-content').innerHTML = html;
+}
+function handleWerkorderVolgende(id){
+  const wo = TD_WERKORDERS.find(function(w){return w.id===id;});
+  if(!wo) return;
+  const stages = CONFIG.tdStatussen;
+  const idx = stages.indexOf(wo.status);
+  const volgende = stages[Math.min(idx+1, stages.length-1)];
+  openAftekenen('Werkorder bijwerken — '+wo.titel, 'Bevestig met je ingelogde account: status wordt "'+volgende+'".', function(){
+    wo.status = volgende;
+    if(volgende==='Opgelost'){ wo.opgelostOp='nu'; if(wo.downtimeWerkelijk==null) wo.downtimeWerkelijk=wo.downtimeProductie; }
+    renderWerkorders();
+  });
+}
+
+// ============ MODALS ============
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); if(id==='modal-aftekenen') pendingAction=null; }
+function openWerkorderVoorbeeld(){ openModal('modal-werkorder-voorbeeld'); }
+let pendingAction = null;
+let modalContext = { mode:'nieuw', afdeling:null, type:null, lijn:null, idx:null };
+
+// Foto bij Veiligheid/Voedselveiligheid-meldingen — puur in-memory (FileReader -> dataURL) zolang de
+// modal open is. Geen backend in deze demo om 'm op te slaan; in SharePoint zou dit de native
+// Attachments-functie op het lijst-item zijn (of een Image-kolom), geen los base64-veld.
+let nfFotoDataUrl = null;
+function renderFotoBox(){
+  const box = document.getElementById('nf-foto-box');
+  if(!box) return;
+  if(nfFotoDataUrl){
+    box.innerHTML = '<div class="relative inline-block">'
+      + '<img src="'+nfFotoDataUrl+'" class="rounded-lg border border-border max-h-40 block">'
+      + '<button type="button" class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow hover:opacity-90" onclick="verwijderFotoUitModal()" title="Foto verwijderen">✕</button>'
+      + '</div>';
+  } else {
+    box.innerHTML = '<button type="button" class="dashed-slot rounded-lg p-4 w-full flex flex-col items-center justify-center text-muted hover:text-secondary transition-colors" onclick="document.getElementById(\'nf-foto-input\').click()">'
+      + '<span class="material-symbols-outlined mb-1">add_a_photo</span><span class="text-micro-caption">Voeg foto toe</span></button>';
+  }
+}
+function handleFotoSelectie(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){ nfFotoDataUrl = e.target.result; renderFotoBox(); };
+  reader.readAsDataURL(file);
+}
+function verwijderFotoUitModal(){
+  nfFotoDataUrl = null;
+  const input = document.getElementById('nf-foto-input');
+  if(input) input.value = '';
+  renderFotoBox();
+}
+
+// Blokkade-foto: zelfde patroon als hierboven (FileReader -> dataURL, in-memory, geen backend),
+// als eigen functie i.p.v. de bestaande functies parametriseren — modal-nieuw is al uitgebreid
+// getest en ik wil dat gedrag niet aanraken voor een ongerelateerde nieuwe modal.
+let blFotoDataUrl = null;
+function renderBlokkadeFotoBox(){
+  const box = document.getElementById('bl-foto-box');
+  if(!box) return;
+  if(blFotoDataUrl){
+    box.innerHTML = '<div class="relative inline-block">'
+      + '<img src="'+blFotoDataUrl+'" class="rounded-lg border border-border max-h-40 block">'
+      + '<button type="button" class="absolute -top-2 -right-2 bg-danger text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow hover:opacity-90" onclick="verwijderBlokkadeFoto()" title="Foto verwijderen">✕</button>'
+      + '</div>';
+  } else {
+    box.innerHTML = '<button type="button" class="dashed-slot rounded-lg p-4 w-full flex flex-col items-center justify-center text-muted hover:text-secondary transition-colors" onclick="document.getElementById(\'bl-foto-input\').click()">'
+      + '<span class="material-symbols-outlined mb-1">add_a_photo</span><span class="text-micro-caption">Voeg foto toe</span></button>';
+  }
+}
+function handleBlokkadeFotoSelectie(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){ blFotoDataUrl = e.target.result; renderBlokkadeFotoBox(); };
+  reader.readAsDataURL(file);
+}
+function verwijderBlokkadeFoto(){
+  blFotoDataUrl = null;
+  const input = document.getElementById('bl-foto-input');
+  if(input) input.value = '';
+  renderBlokkadeFotoBox();
+}
+
+function resetModalVelden(){
+  ['nf-afwijking','nf-impact','nf-oorzaak','nf-correctief','nf-preventief','nf-waste','nf-rework','nf-stilstand','nf-extrawerk','nf-toegewezen'].forEach(function(id){ document.getElementById(id).value=''; });
+  ['nf-waste-reden','nf-rework-reden','nf-stilstand-reden','nf-extrawerk-reden'].forEach(function(id){ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+  document.getElementById('nf-prioriteit').value='Midden';
+  document.getElementById('nf-prioriteit').disabled=false;
+  document.getElementById('nf-vervolgactie').value='Geen';
+  document.getElementById('nf-vreemd-voorwerp').checked=false;
+  document.getElementById('nf-afwijking').placeholder='Wat is er gebeurd?';
+  const fel = document.getElementById('nf-fout'); fel.classList.remove('show'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('nf-verwijder-btn').style.display='none';
+  nfFotoDataUrl = null;
+  renderFotoBox();
+}
+function openNieuweAfwijking(afdeling, lijn){
+  if(!INGELOGD){ console.warn('openNieuweAfwijking geblokkeerd: niet ingelogd.'); return; }
+  modalContext = {mode:'nieuw', afdeling:afdeling, type:'lijn', lijn:lijn, idx:null};
+  resetModalVelden();
+  document.getElementById('modal-nieuw-titel').textContent = 'Log Nieuwe Afwijking';
+  document.getElementById('nf-categorie').value='Productie-afwijking';
+  toggleLijnVeld();
+  if(lijn) document.getElementById('nf-lijn').value = lijn;
+  toggleCategorieVelden();
+  openModal('modal-nieuw');
+}
+function openNieuweMededeling(afdeling){
+  if(!INGELOGD){ console.warn('openNieuweMededeling geblokkeerd: niet ingelogd.'); return; }
+  modalContext = {mode:'nieuw', afdeling:afdeling, type:'veiligheid', lijn:null, idx:null};
+  resetModalVelden();
+  document.getElementById('modal-nieuw-titel').textContent = 'Log Nieuwe Melding';
+  document.getElementById('nf-categorie').value='Veiligheid';
+  toggleLijnVeld();
+  toggleCategorieVelden();
+  openModal('modal-nieuw');
+}
+function openNieuweLototo(afdeling){
+  if(!INGELOGD){ console.warn('openNieuweLototo geblokkeerd: niet ingelogd.'); return; }
+  modalContext = {mode:'nieuw', afdeling:afdeling, type:'veiligheid', lijn:null, idx:null};
+  resetModalVelden();
+  document.getElementById('modal-nieuw-titel').textContent = 'LOTOTO / Werkvergunning loggen';
+  document.getElementById('nf-categorie').value='LOTOTO / Werkvergunning';
+  document.getElementById('nf-afwijking').placeholder='Welke machine/installatie? Reden van LOTOTO of type werkvergunning?';
+  toggleLijnVeld();
+  toggleCategorieVelden();
+  openModal('modal-nieuw');
+}
+
+// ============ BLOKKADEFORMULIER (QA) ============
+let blokkadeContext = { mode:'nieuw', afdeling:null, idx:null };
+function resetBlokkadeVelden(){
+  ['bl-artikel','bl-batch','bl-hoeveelheid','bl-locatie','bl-reden'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('bl-type').value='Grondstof';
+  const fel=document.getElementById('bl-fout'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('bl-verwijder-btn').style.display='none';
+  blFotoDataUrl = null;
+  renderBlokkadeFotoBox();
+}
+function openNieuweBlokkade(afdeling){
+  if(!INGELOGD){ console.warn('openNieuweBlokkade geblokkeerd: niet ingelogd.'); return; }
+  blokkadeContext = {mode:'nieuw', afdeling:afdeling, idx:null};
+  resetBlokkadeVelden();
+  document.getElementById('modal-blokkade-titel').textContent = 'Blokkade aanmaken (QA)';
+  openModal('modal-blokkade');
+}
+function openBewerkBlokkade(afdeling, idx){
+  const item = formState[afdeling].blokkades[idx];
+  if(!item){ console.warn('openBewerkBlokkade: item niet gevonden — ', afdeling, idx); return; }
+  blokkadeContext = {mode:'bewerken', afdeling:afdeling, idx:idx};
+  document.getElementById('modal-blokkade-titel').textContent = 'Blokkade bewerken';
+  document.getElementById('bl-type').value = item.type;
+  document.getElementById('bl-artikel').value = item.artikel;
+  document.getElementById('bl-batch').value = item.batchTht;
+  document.getElementById('bl-hoeveelheid').value = item.hoeveelheid;
+  document.getElementById('bl-locatie').value = item.locatie;
+  document.getElementById('bl-reden').value = item.reden;
+  blFotoDataUrl = item.foto || null;
+  renderBlokkadeFotoBox();
+  const fel=document.getElementById('bl-fout'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('bl-verwijder-btn').style.display='';
+  openModal('modal-blokkade');
+}
+function opslaanBlokkade(){
+  const type = document.getElementById('bl-type').value;
+  const artikel = document.getElementById('bl-artikel').value.trim();
+  const batchTht = document.getElementById('bl-batch').value.trim();
+  const hoeveelheid = document.getElementById('bl-hoeveelheid').value.trim();
+  const locatie = document.getElementById('bl-locatie').value.trim();
+  const reden = document.getElementById('bl-reden').value.trim();
+
+  const fouten = [];
+  if(!artikel) fouten.push('Artikel / Omschrijving is verplicht.');
+  if(!batchTht) fouten.push('Batchnummer / THT is verplicht — cruciaal voor tracering.');
+  if(!reden) fouten.push('Reden van blokkade is verplicht.');
+  if(fouten.length>0){
+    const fel = document.getElementById('bl-fout');
+    fel.innerHTML = '<strong>Kan niet opslaan:</strong><ul class="list-disc pl-4 mt-1">'+fouten.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>';
+    fel.classList.remove('hidden');
+    if(typeof fel.scrollIntoView==='function') fel.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  const afdeling = blokkadeContext.afdeling;
+  const bestaand = blokkadeContext.mode==='bewerken' ? formState[afdeling].blokkades[blokkadeContext.idx] : null;
+  const item = {
+    type:type, artikel:artikel, batchTht:batchTht, hoeveelheid:hoeveelheid, locatie:locatie, reden:reden,
+    foto: blFotoDataUrl || null,
+    status: bestaand ? bestaand.status : 'Actief',
+    gemeldOp: bestaand ? bestaand.gemeldOp : tijdNu(),
+    gemeldDoor: bestaand ? bestaand.gemeldDoor : (INGELOGD ? INGELOGD.naam : null),
+    vrijgegevenDoor: bestaand ? bestaand.vrijgegevenDoor : null,
+    vrijgegevenOp: bestaand ? bestaand.vrijgegevenOp : null
+  };
+  if(blokkadeContext.mode==='bewerken') formState[afdeling].blokkades.splice(blokkadeContext.idx, 1, item);
+  else formState[afdeling].blokkades.push(item);
+
+  closeModal('modal-blokkade');
+  renderHuidigeShift();
+}
+function verwijderBlokkade(afdeling, idx){
+  const item = formState[afdeling].blokkades[idx];
+  if(!item){ console.warn('verwijderBlokkade: item niet gevonden — ', afdeling, idx); return; }
+  openAftekenen('Blokkade verwijderen', 'Bevestig met je ingelogde account dat je de blokkade op "'+item.artikel+'" ('+item.batchTht+') wilt verwijderen.', function(){
+    formState[afdeling].blokkades.splice(idx,1);
+    renderHuidigeShift();
+  });
+}
+function bevestigVerwijderenBlokkade(){
+  if(blokkadeContext.mode!=='bewerken') return;
+  closeModal('modal-blokkade');
+  verwijderBlokkade(blokkadeContext.afdeling, blokkadeContext.idx);
+}
+// Niet expliciet gevraagd, maar "actieve blokkades" impliceert een status die kan veranderen —
+// zonder een vrijgave-actie kan een blokkade nooit audit-proof worden afgesloten. Hergebruikt de
+// bestaande aftekenen-modal voor een geauditeerde bevestiging, net als bij Dagoverleg/Werkorders.
+function handleVrijgevenBlokkade(afdeling, idx){
+  const item = formState[afdeling].blokkades[idx];
+  if(!item){ console.warn('handleVrijgevenBlokkade: item niet gevonden — ', afdeling, idx); return; }
+  openAftekenen('Blokkade vrijgeven', 'Bevestig met je ingelogde account dat "'+item.artikel+'" (batch/THT: '+item.batchTht+') is vrijgegeven en niet langer geblokkeerd is.', function(){
+    item.status = 'Vrijgegeven';
+    item.vrijgegevenDoor = INGELOGD.naam;
+    item.vrijgegevenOp = tijdNu();
+    // Kan vanuit Huidige Shift óf vanuit Dagoverleg getriggerd zijn — allebei verversen is goedkoop
+    // en voorkomt dat de ene view een vrijgegeven blokkade nog als actief toont.
+    renderHuidigeShift();
+    renderDagoverleg();
+  });
+}
+
+// ============ E-WEGING HOGE UITSTOOT ============
+let ewegingContext = { mode:'nieuw', afdeling:null, idx:null };
+function resetEWegingVelden(){
+  ['ew-artikel','ew-tijdvak','ew-hoeveelheid','ew-actie'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('ew-soort').value='Ondergewicht';
+  const fel=document.getElementById('ew-fout'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('ew-verwijder-btn').style.display='none';
+}
+function openNieuweEWeging(afdeling){
+  if(!INGELOGD){ console.warn('openNieuweEWeging geblokkeerd: niet ingelogd.'); return; }
+  ewegingContext = {mode:'nieuw', afdeling:afdeling, idx:null};
+  resetEWegingVelden();
+  document.getElementById('modal-eweging-titel').textContent = 'Hoge uitstoot e-weging loggen';
+  document.getElementById('ew-lijn').innerHTML = CONFIG.productielijnen[afdeling].map(function(l){return '<option>'+l+'</option>';}).join('');
+  openModal('modal-eweging');
+}
+function openBewerkEWeging(afdeling, idx){
+  const item = formState[afdeling].eWegingen[idx];
+  if(!item){ console.warn('openBewerkEWeging: item niet gevonden — ', afdeling, idx); return; }
+  ewegingContext = {mode:'bewerken', afdeling:afdeling, idx:idx};
+  document.getElementById('modal-eweging-titel').textContent = 'E-weging bewerken';
+  document.getElementById('ew-lijn').innerHTML = CONFIG.productielijnen[afdeling].map(function(l){return '<option>'+l+'</option>';}).join('');
+  document.getElementById('ew-lijn').value = item.lijn;
+  document.getElementById('ew-artikel').value = item.artikelBatch;
+  document.getElementById('ew-tijdvak').value = item.tijdvak;
+  document.getElementById('ew-soort').value = item.soortUitstoot;
+  document.getElementById('ew-hoeveelheid').value = item.hoeveelheid;
+  document.getElementById('ew-actie').value = item.actie;
+  const fel=document.getElementById('ew-fout'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('ew-verwijder-btn').style.display='';
+  openModal('modal-eweging');
+}
+function opslaanEWeging(){
+  const lijn = document.getElementById('ew-lijn').value;
+  const artikelBatch = document.getElementById('ew-artikel').value.trim();
+  const tijdvak = document.getElementById('ew-tijdvak').value.trim();
+  const soortUitstoot = document.getElementById('ew-soort').value;
+  const hoeveelheid = document.getElementById('ew-hoeveelheid').value;
+  const actie = document.getElementById('ew-actie').value.trim();
+
+  const fouten = [];
+  if(!artikelBatch) fouten.push('Artikel / Batch is verplicht.');
+  if(!tijdvak) fouten.push('Tijdvak van uitstoot is verplicht.');
+  if(!actie) fouten.push('Genomen actie is verplicht.');
+  if(fouten.length>0){
+    const fel = document.getElementById('ew-fout');
+    fel.innerHTML = '<strong>Kan niet opslaan:</strong><ul class="list-disc pl-4 mt-1">'+fouten.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>';
+    fel.classList.remove('hidden');
+    if(typeof fel.scrollIntoView==='function') fel.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  const afdeling = ewegingContext.afdeling;
+  const bestaand = ewegingContext.mode==='bewerken' ? formState[afdeling].eWegingen[ewegingContext.idx] : null;
+  const item = { lijn:lijn, artikelBatch:artikelBatch, tijdvak:tijdvak, soortUitstoot:soortUitstoot,
+    hoeveelheid: hoeveelheid===''?0:Number(hoeveelheid), actie:actie,
+    gemeldOp: bestaand ? bestaand.gemeldOp : tijdNu(), gemeldDoor: bestaand ? bestaand.gemeldDoor : (INGELOGD ? INGELOGD.naam : null) };
+  if(ewegingContext.mode==='bewerken') formState[afdeling].eWegingen.splice(ewegingContext.idx, 1, item);
+  else formState[afdeling].eWegingen.push(item);
+
+  closeModal('modal-eweging');
+  renderHuidigeShift();
+}
+function verwijderEWeging(afdeling, idx){
+  const item = formState[afdeling].eWegingen[idx];
+  if(!item){ console.warn('verwijderEWeging: item niet gevonden — ', afdeling, idx); return; }
+  openAftekenen('E-weging verwijderen', 'Bevestig met je ingelogde account dat je deze uitstoot-registratie wilt verwijderen.', function(){
+    formState[afdeling].eWegingen.splice(idx,1);
+    renderHuidigeShift();
+  });
+}
+function bevestigVerwijderenEWeging(){
+  if(ewegingContext.mode!=='bewerken') return;
+  closeModal('modal-eweging');
+  verwijderEWeging(ewegingContext.afdeling, ewegingContext.idx);
+}
+
+// ============ RENDER: Kwaliteit (QA), Blokkades & Uitstoot ============
+function renderQaSectie(afdeling){
+  const shift = formState[afdeling];
+  const cards = [];
+
+  shift.blokkades.forEach(function(b, idx){
+    const actief = b.status==='Actief';
+    cards.push({
+      volgorde: actief ? 0 : 1,
+      html: '<div class="p-2.5 border-l-4 rounded mb-2 flex justify-between items-start gap-2 '+(actief?'border-l-danger bg-danger-pale/40':'border-l-secondary bg-surface-container-low')+'">'
+        + '<div class="min-w-0">'
+        + '<p class="text-xs font-bold flex items-center gap-1.5 flex-wrap"><span class="prioriteit-badge prioriteit-Hoog">'+esc(b.type)+'</span>'+esc(b.artikel)+'</p>'
+        + '<p class="text-[10px] text-muted mt-0.5 font-mono-num">Batch/THT: '+esc(b.batchTht)+(b.hoeveelheid?' · '+esc(b.hoeveelheid):'')+(b.locatie?' · '+esc(b.locatie):'')+'</p>'
+        + '<p class="text-[10px] text-muted mt-0.5 italic">'+esc(b.reden)+'</p>'
+        + (b.foto ? '<img src="'+b.foto+'" class="rounded border border-border max-h-16 mt-1.5 block">' : '')
+        + '<p class="text-[10px] mt-1.5 flex items-center gap-1.5 flex-wrap"><span class="escalatie-badge '+(actief?'escalatie-Kritiek':'escalatie-Routinematig')+'">'+b.status+'</span>'
+        +   (b.status==='Vrijgegeven' ? '<span class="text-muted">door '+esc(b.vrijgegevenDoor)+' · '+b.vrijgegevenOp+'</span>' : '') + '</p>'
+        + '</div>'
+        + '<div class="flex flex-col items-end gap-1.5 shrink-0">'
+        + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink" onclick="openBewerkBlokkade(\''+afdeling+'\','+idx+')">edit</span>'
+        + (actief ? '<button class="text-secondary text-[10px] font-bold hover:underline whitespace-nowrap" onclick="handleVrijgevenBlokkade(\''+afdeling+'\','+idx+')">✓ Vrijgeven</button>' : '')
+        + '</div></div>'
+    });
+  });
+
+  shift.eWegingen.forEach(function(e, idx){
+    cards.push({
+      volgorde: 0,
+      html: '<div class="p-2.5 border-l-4 border-l-info bg-info-pale/30 rounded mb-2 flex justify-between items-start gap-2">'
+        + '<div class="min-w-0">'
+        + '<p class="text-xs font-bold flex items-center gap-1.5 flex-wrap"><span class="text-[9.5px] font-bold text-white px-2 py-0.5 rounded-full uppercase tracking-wide" style="background:#1D4ED8">'+esc(e.soortUitstoot)+'</span>'+esc(e.artikelBatch)+'</p>'
+        + '<p class="text-[10px] text-muted mt-0.5 font-mono-num">'+e.lijn+' · '+esc(e.tijdvak)+(e.hoeveelheid?' · '+e.hoeveelheid:'')+'</p>'
+        + '<p class="text-[10px] text-muted mt-0.5 italic">'+esc(e.actie)+'</p>'
+        + '</div>'
+        + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink shrink-0" onclick="openBewerkEWeging(\''+afdeling+'\','+idx+')">edit</span>'
+        + '</div>'
+    });
+  });
+
+  document.getElementById('shift-qa').innerHTML = cards.length
+    ? cards.sort(function(a,b){return a.volgorde-b.volgorde;}).map(function(c){return c.html;}).join('')
+    : '<p class="text-xs text-muted italic">Geen blokkades of uitstoot-registraties gelogd.</p>';
+
+  const actiefAantal = shift.blokkades.filter(function(b){return b.status==='Actief';}).length;
+  const badge = document.getElementById('count-blokkades');
+  badge.textContent = actiefAantal;
+  badge.classList.toggle('zero', actiefAantal===0);
+}
+
+// ============ TIJDLIJN (Log History) ============
+// Combineert alle gelogde activiteit van de shift in chronologische volgorde — afwijkingen,
+// veiligheid/voedselveiligheid, LOTOTO, mededelingen (Planning), blokkades en e-wegingen.
+// gemeldOp is sinds deze ronde een echt HH:MM-tijdstip (tijdNu()), niet meer de letterlijke
+// tekst 'nu' — anders kon dit niet betrouwbaar chronologisch gesorteerd worden.
+const TIJDLIJN_ICONEN = {
+  afwijking:   {icon:'report_problem', kleur:'#C0392B'},
+  veiligheid:  {icon:'health_and_safety', kleur:'#D97706'},
+  lototo:      {icon:'lock', kleur:'#D97706'},
+  mededeling:  {icon:'info', kleur:'#1D4ED8'},
+  blokkade:    {icon:'block', kleur:'#C0392B'},
+  eweging:     {icon:'scale', kleur:'#1D4ED8'}
+};
+function renderTijdlijn(afdeling){
+  const cont = document.getElementById('shift-tijdlijn');
+  if(!cont) return;
+  const shift = formState[afdeling];
+  const items = [];
+
+  Object.keys(shift.lijnen).forEach(function(lijn){
+    shift.lijnen[lijn].afwijkingen.forEach(function(a){
+      items.push({tijd:a.gemeldOp, type:'afwijking', titel:a.omschrijving, sub:lijn, kritiek:a.escalatieniveau==='Kritiek'});
+    });
+  });
+  shift.veiligheid.forEach(function(v){
+    const isLototo = v.categorie==='LOTOTO / Werkvergunning';
+    const isPlanning = v.categorie==='Planning';
+    const type = isLototo ? 'lototo' : (isPlanning ? 'mededeling' : 'veiligheid');
+    items.push({tijd:v.gemeldOp, type:type, titel:v.omschrijving, sub:v.categorie, kritiek:v.escalatieniveau==='Kritiek'});
+  });
+  shift.blokkades.forEach(function(b){
+    items.push({tijd:b.gemeldOp, type:'blokkade', titel:b.artikel+' ('+b.batchTht+')', sub:b.type+' · '+b.status, kritiek:b.status==='Actief'});
+  });
+  shift.eWegingen.forEach(function(e){
+    items.push({tijd:e.gemeldOp, type:'eweging', titel:e.artikelBatch, sub:e.lijn+' · '+e.soortUitstoot, kritiek:false});
+  });
+
+  items.sort(function(a,b){ return (b.tijd||'').localeCompare(a.tijd||''); });
+
+  cont.innerHTML = items.length ? items.map(function(it, i){
+    const conf = TIJDLIJN_ICONEN[it.type] || {icon:'circle', kleur:'#6B7280'};
+    const kleur = it.kritiek ? '#C0392B' : conf.kleur;
+    const icoon = it.kritiek ? 'warning' : conf.icon;
+    const laatste = i===items.length-1;
+    return '<div class="flex gap-3">'
+      + '<div class="flex flex-col items-center shrink-0">'
+      +   '<span class="w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0" style="background:'+kleur+'"><span class="material-symbols-outlined text-[14px]">'+icoon+'</span></span>'
+      +   (laatste ? '' : '<span class="w-px flex-1 bg-border mt-1" style="min-height:14px"></span>')
+      + '</div>'
+      + '<div class="min-w-0 pb-4">'
+      +   '<p class="text-[10px] font-mono-num text-muted">'+(it.tijd||'—')+'</p>'
+      +   '<p class="text-xs font-bold truncate">'+esc(it.titel)+'</p>'
+      +   '<p class="text-[10px] text-muted">'+esc(it.sub)+'</p>'
+      + '</div></div>';
+  }).join('') : '<p class="text-xs text-muted italic">Nog geen activiteit gelogd deze shift.</p>';
+}
+function openBewerkAfwijking(afdeling, lijn, idx){
+  const item = formState[afdeling].lijnen[lijn] && formState[afdeling].lijnen[lijn].afwijkingen[idx];
+  if(!item){ console.warn('openBewerkAfwijking: item niet gevonden — ', afdeling, lijn, idx); return; }
+  modalContext = {mode:'bewerken', afdeling:afdeling, type:'lijn', lijn:lijn, idx:idx};
+  document.getElementById('modal-nieuw-titel').textContent = 'Afwijking Bewerken';
+  document.getElementById('nf-categorie').value='Productie-afwijking';
+  toggleLijnVeld();
+  document.getElementById('nf-lijn').value = lijn;
+  document.getElementById('nf-afwijking').value = item.omschrijving;
+  document.getElementById('nf-impact').value = item.impact||'';
+  document.getElementById('nf-oorzaak').value = item.oorzaak||'';
+  document.getElementById('nf-correctief').value = item.correctief||'';
+  document.getElementById('nf-preventief').value = item.preventief||'';
+  document.getElementById('nf-waste').value = item.wasteKg||'';
+  document.getElementById('nf-rework').value = item.reworkKg||'';
+  document.getElementById('nf-stilstand').value = item.stilstandMin||'';
+  document.getElementById('nf-extrawerk').value = item.extraWerkMin||'';
+  const redenMap = {waste: item.wasteReden||'', rework: item.reworkReden||'', stilstand: item.stilstandReden||'', extrawerk: item.extrawerkReden||''};
+  ['waste','rework','stilstand','extrawerk'].forEach(function(kpi){ const el=document.getElementById('nf-'+kpi+'-reden'); if(el) el.value = redenMap[kpi]; });
+  document.getElementById('nf-prioriteit').value = item.prioriteit||'Midden';
+  document.getElementById('nf-vervolgactie').value = item.vervolgactie||'Geen';
+  document.getElementById('nf-toegewezen').value = item.toegewezen||'';
+  const fel=document.getElementById('nf-fout'); fel.classList.remove('show'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('nf-verwijder-btn').style.display='';
+  toggleCategorieVelden();
+  openModal('modal-nieuw');
+}
+function openBewerkVeiligheid(afdeling, idx){
+  const item = formState[afdeling].veiligheid[idx];
+  if(!item){ console.warn('openBewerkVeiligheid: item niet gevonden — ', afdeling, idx); return; }
+  modalContext = {mode:'bewerken', afdeling:afdeling, type:'veiligheid', lijn:null, idx:idx};
+  document.getElementById('modal-nieuw-titel').textContent = 'Item Bewerken';
+  document.getElementById('nf-categorie').value = item.categorie;
+  toggleLijnVeld();
+  document.getElementById('nf-afwijking').value = item.omschrijving;
+  document.getElementById('nf-impact').value = item.impact||'';
+  document.getElementById('nf-oorzaak').value = item.oorzaak||'';
+  document.getElementById('nf-correctief').value = item.correctief||'';
+  document.getElementById('nf-preventief').value = item.preventief||'';
+  document.getElementById('nf-waste').value=''; document.getElementById('nf-rework').value=''; document.getElementById('nf-stilstand').value=''; document.getElementById('nf-extrawerk').value='';
+  document.getElementById('nf-prioriteit').value = item.prioriteit||'Midden';
+  document.getElementById('nf-vervolgactie').value = item.vervolgactie||'Geen';
+  document.getElementById('nf-toegewezen').value='';
+  document.getElementById('nf-vreemd-voorwerp').checked = !!item.vreemdVoorwerp;
+  nfFotoDataUrl = item.foto || null;
+  renderFotoBox();
+  const fel=document.getElementById('nf-fout'); fel.classList.remove('show'); fel.classList.add('hidden'); fel.innerHTML='';
+  document.getElementById('nf-verwijder-btn').style.display='';
+  toggleCategorieVelden();
+  if(item.vreemdVoorwerp) handleVreemdVoorwerpToggle();
+  openModal('modal-nieuw');
+}
+function bevestigVerwijderenVanuitModal(){
+  if(modalContext.mode!=='bewerken') return;
+  closeModal('modal-nieuw');
+  if(modalContext.type==='lijn') verwijderAfwijking(modalContext.afdeling, modalContext.lijn, modalContext.idx);
+  else verwijderVeiligheid(modalContext.afdeling, modalContext.idx);
+}
+function verwijderAfwijking(afdeling, lijn, idx){
+  const item = formState[afdeling].lijnen[lijn] && formState[afdeling].lijnen[lijn].afwijkingen[idx];
+  if(!item){ console.warn('verwijderAfwijking: item niet gevonden — ', afdeling, lijn, idx); return; }
+  openAftekenen('Afwijking verwijderen', 'Bevestig met je ingelogde account dat je "'+item.omschrijving+'" wilt verwijderen.', function(){
+    formState[afdeling].lijnen[lijn].afwijkingen.splice(idx,1);
+    renderHuidigeShift();
+  });
+}
+function verwijderVeiligheid(afdeling, idx){
+  const item = formState[afdeling].veiligheid[idx];
+  if(!item){ console.warn('verwijderVeiligheid: item niet gevonden — ', afdeling, idx); return; }
+  openAftekenen('Item verwijderen', 'Bevestig met je ingelogde account dat je "'+item.omschrijving+'" wilt verwijderen.', function(){
+    formState[afdeling].veiligheid.splice(idx,1);
+    renderHuidigeShift();
+  });
+}
+function toggleLijnVeld(){
+  const cat = document.getElementById('nf-categorie').value;
+  const wrap = document.getElementById('nf-lijn-wrap');
+  const sel = document.getElementById('nf-lijn');
+  if(cat==='Productie-afwijking'){
+    wrap.style.display='';
+    const alleLijnen = Array.from(new Set(CONFIG.productielijnen.Productie.concat(CONFIG.productielijnen.Inpak)));
+    sel.innerHTML = alleLijnen.map(function(l){return '<option>'+l+'</option>';}).join('');
+  } else { wrap.style.display='none'; }
+}
+function toggleCategorieVelden(){
+  const cat = document.getElementById('nf-categorie').value;
+  const isPlanning = cat==='Planning';
+  const isProductieAfw = cat==='Productie-afwijking';
+  const isVoedselveiligheid = cat==='Voedselveiligheid';
+  const isVeiligheidsCat = cat==='Veiligheid' || cat==='Voedselveiligheid' || cat==='LOTOTO / Werkvergunning';
+  document.getElementById('nf-volledig-wrap').style.display = isPlanning ? 'none' : '';
+  document.getElementById('nf-rca-box').style.display = isPlanning ? 'none' : '';
+  document.getElementById('nf-planning-hint').style.display = isPlanning ? '' : 'none';
+  document.getElementById('nf-kpi-wrap').style.display = isProductieAfw ? '' : 'none';
+  document.getElementById('nf-foto-wrap').style.display = isVeiligheidsCat ? '' : 'none';
+  document.getElementById('nf-prioriteit-wrap').style.display = isPlanning ? 'none' : '';
+  document.getElementById('nf-afwijking-label').textContent = isPlanning ? 'Mededeling' : 'Omschrijving';
+  document.getElementById('nf-vreemd-voorwerp-wrap').style.display = isVoedselveiligheid ? 'flex' : 'none';
+  if(!isVoedselveiligheid){
+    // Categorie weggeklikt van Voedselveiligheid: vlag + geforceerde prioriteit niet laten "kleven".
+    document.getElementById('nf-vreemd-voorwerp').checked = false;
+    document.getElementById('nf-prioriteit').disabled = false;
+  }
+  updateEscalatiePreview();
+}
+// Vreemd Voorwerp is de enige plek in het formulier waar een vinkje dwingend (niet slechts adviserend)
+// Prioriteit + Escalatieniveau bepaalt — vergrendelt het Prioriteit-veld zolang het vinkje aan staat,
+// zodat een teamleider het niet per ongeluk weer kan terugzetten naar Midden/Laag.
+function handleVreemdVoorwerpToggle(){
+  const checked = document.getElementById('nf-vreemd-voorwerp').checked;
+  const prioSel = document.getElementById('nf-prioriteit');
+  if(checked){ prioSel.value='Hoog'; prioSel.disabled=true; }
+  else { prioSel.disabled=false; }
+  updateEscalatiePreview();
+}
+function updateEscalatiePreview(){
+  const el = document.getElementById('nf-escalatie-preview');
+  if(!el) return;
+  const cat = document.getElementById('nf-categorie').value;
+  if(cat==='Planning'){ el.style.display='none'; el.innerHTML=''; return; }
+  const isProductieAfw = cat==='Productie-afwijking';
+  const waste = Number(document.getElementById('nf-waste').value||0);
+  const stilstand = Number(document.getElementById('nf-stilstand').value||0);
+  const extrawerk = Number(document.getElementById('nf-extrawerk').value||0);
+  const prioriteit = document.getElementById('nf-prioriteit').value;
+  const vreemdVoorwerp = cat==='Voedselveiligheid' && document.getElementById('nf-vreemd-voorwerp').checked;
+  const drempelOverschreden = isProductieAfw && (waste>CONFIG.drempelwaarden.wasteKg || stilstand>CONFIG.drempelwaarden.stilstandMin || extrawerk>CONFIG.drempelwaarden.extraWerkMin);
+  const niveau = bepaalEscalatieniveau(prioriteit, drempelOverschreden);
+  let reden;
+  if(vreemdVoorwerp) reden='Vreemd voorwerp gemeld — verplicht Kritiek';
+  else if(niveau==='Kritiek') reden='Prioriteit Hoog';
+  else if(drempelOverschreden && prioriteit==='Midden') reden='drempel overschreden + Prioriteit Midden';
+  else if(drempelOverschreden) reden='drempel overschreden (Waste &gt;'+CONFIG.drempelwaarden.wasteKg+'kg, Stilstand &gt;'+CONFIG.drempelwaarden.stilstandMin+'min of Extra werk &gt;'+CONFIG.drempelwaarden.extraWerkMin+'min)';
+  else if(prioriteit==='Midden') reden='Prioriteit Midden';
+  else reden='geen drempel overschreden, lage prioriteit';
+  const icoon = niveau==='Kritiek' ? 'error' : niveau==='Aandachtspunt' ? 'warning' : 'check_circle';
+  el.className = 'rounded-lg p-3 flex items-center justify-between escalatie-'+niveau;
+  el.style.display='flex';
+  el.innerHTML = '<div><p class="text-[10px] uppercase opacity-70 font-bold">Escalatieniveau</p><p class="font-mono-num text-sm font-bold">'+niveau+'</p>'
+    + '<p class="text-[10px] mt-1 opacity-80">'+reden+'</p>'
+    + (niveau!=='Routinematig' ? '<p class="text-[10px] mt-1 font-bold">→ verschijnt direct in Dagoverleg</p>' : '') + '</div>'
+    + '<span class="material-symbols-outlined">'+icoon+'</span>';
+}
+function opslaanAfwijking(){
+  const categorie = document.getElementById('nf-categorie').value;
+  const isPlanning = categorie==='Planning';
+  const isProductieAfw = categorie==='Productie-afwijking';
+  const isVoedselveiligheid = categorie==='Voedselveiligheid';
+  const lijn = isProductieAfw ? document.getElementById('nf-lijn').value : null;
+  const omschrijving = document.getElementById('nf-afwijking').value.trim();
+  const impact = document.getElementById('nf-impact').value.trim();
+  const oorzaak = document.getElementById('nf-oorzaak').value.trim();
+  const correctief = document.getElementById('nf-correctief').value.trim();
+  const preventief = document.getElementById('nf-preventief').value.trim();
+  const wasteKg = isProductieAfw ? document.getElementById('nf-waste').value : '';
+  const reworkKg = isProductieAfw ? document.getElementById('nf-rework').value : '';
+  const stilstandMin = isProductieAfw ? document.getElementById('nf-stilstand').value : '';
+  const extraWerkMin = isProductieAfw ? document.getElementById('nf-extrawerk').value : '';
+  function leesReden(id){ const el=document.getElementById(id); if(!el) return null; const v=el.value; return (v && !v.startsWith('—')) ? v : null; }
+  const wasteReden = isProductieAfw ? leesReden('nf-waste-reden') : null;
+  const reworkReden = isProductieAfw ? leesReden('nf-rework-reden') : null;
+  const stilstandReden = isProductieAfw ? leesReden('nf-stilstand-reden') : null;
+  const extrawerkReden = isProductieAfw ? leesReden('nf-extrawerk-reden') : null;
+  const vervolgactie = document.getElementById('nf-vervolgactie').value;
+  const toegewezen = document.getElementById('nf-toegewezen').value.trim();
+  const vreemdVoorwerp = isVoedselveiligheid && document.getElementById('nf-vreemd-voorwerp').checked;
+  // Dwingend: een aangevinkt Vreemd Voorwerp overschrijft de gekozen Prioriteit altijd naar Hoog,
+  // ongeacht wat er in het (dan vergrendelde) select-veld staat — geen vertrouwen op alleen de
+  // disabled-state van de UI, ook hier opnieuw afgedwongen.
+  let prioriteit = document.getElementById('nf-prioriteit').value;
+  if(vreemdVoorwerp) prioriteit = 'Hoog';
+
+  const drempelOverschreden = isProductieAfw && (Number(wasteKg||0)>CONFIG.drempelwaarden.wasteKg || Number(stilstandMin||0)>CONFIG.drempelwaarden.stilstandMin || Number(extraWerkMin||0)>CONFIG.drempelwaarden.extraWerkMin);
+  const fouten = [];
+  if(!omschrijving) fouten.push(isPlanning ? 'Mededeling is verplicht.' : 'Afwijking (omschrijving) is verplicht.');
+  if(isProductieAfw && !lijn) fouten.push('Kies een productielijn.');
+  if(!isPlanning && drempelOverschreden && !oorzaak) fouten.push('Waste KG, Stilstand of Extra werk overschrijdt de drempel — Oorzaak is dan verplicht (BRCGS/IFS).');
+  if(vreemdVoorwerp && !oorzaak) fouten.push('Oorzaak is verplicht bij een Vreemd Voorwerp-melding (BRCGS/IFS).');
+  if(fouten.length>0){
+    const fel = document.getElementById('nf-fout');
+    fel.innerHTML = '<strong>Kan niet opslaan:</strong><ul class="list-disc pl-4 mt-1">'+fouten.map(function(f){return '<li>'+esc(f)+'</li>';}).join('')+'</ul>';
+    fel.classList.remove('hidden'); fel.classList.add('show');
+    if(typeof fel.scrollIntoView==='function') fel.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  const afdeling = modalContext.afdeling;
+  const escalatieniveau = isPlanning ? null : bepaalEscalatieniveau(prioriteit, drempelOverschreden);
+  const bestaandGemeldOp = (modalContext.mode==='bewerken') ? haalGemeldOp(modalContext) : tijdNu();
+  const bestaandDagoverlegId = (modalContext.mode==='bewerken') ? haalDagoverlegId(modalContext) : null;
+
+  if(modalContext.mode==='bewerken'){
+    if(modalContext.type==='lijn') formState[afdeling].lijnen[modalContext.lijn].afwijkingen.splice(modalContext.idx,1);
+    else formState[afdeling].veiligheid.splice(modalContext.idx,1);
+  }
+
+  let nieuwItem;
+  if(isProductieAfw){
+    nieuwItem = { omschrijving:omschrijving, impact:impact, oorzaak:oorzaak, correctief:correctief, preventief:preventief,
+      wasteKg: wasteKg===''?0:Number(wasteKg), reworkKg: reworkKg===''?0:Number(reworkKg), stilstandMin: stilstandMin===''?0:Number(stilstandMin), extraWerkMin: extraWerkMin===''?0:Number(extraWerkMin),
+      wasteReden:wasteReden, reworkReden:reworkReden, stilstandReden:stilstandReden, extrawerkReden:extrawerkReden,
+      vervolgactie:vervolgactie, prioriteit:prioriteit, toegewezen:toegewezen, escalatieniveau:escalatieniveau, drempelOverschreden:drempelOverschreden, gemeldOp:bestaandGemeldOp, dagoverlegId:bestaandDagoverlegId };
+    formState[afdeling].lijnen[lijn].afwijkingen.push(nieuwItem);
+  } else {
+    const isVeiligheidsCat = categorie==='Veiligheid' || categorie==='Voedselveiligheid' || categorie==='LOTOTO / Werkvergunning';
+    nieuwItem = { categorie:categorie, omschrijving:omschrijving, impact:impact, oorzaak:oorzaak, correctief:correctief, preventief:preventief,
+      vervolgactie:vervolgactie, prioriteit: isPlanning?null:prioriteit, escalatieniveau:escalatieniveau, toegewezen:toegewezen, gemeldOp:bestaandGemeldOp, dagoverlegId:bestaandDagoverlegId,
+      foto: isVeiligheidsCat ? (nfFotoDataUrl||null) : null, vreemdVoorwerp: isVoedselveiligheid ? vreemdVoorwerp : false };
+    formState[afdeling].veiligheid.push(nieuwItem);
+  }
+
+  if(escalatieniveau && escalatieniveau!=='Routinematig'){
+    nieuwItem.dagoverlegId = pushOfUpdateDagoverleg(bestaandDagoverlegId, afdeling, isProductieAfw?lijn:'Veiligheid/Voedselveiligheid', omschrijving, vervolgactie, escalatieniveau, prioriteit);
+  } else if(bestaandDagoverlegId){
+    nieuwItem.dagoverlegId = null;
+  }
+
+  closeModal('modal-nieuw');
+  renderHuidigeShift();
+}
+function haalGemeldOp(ctx){
+  try{
+    if(ctx.type==='lijn') return formState[ctx.afdeling].lijnen[ctx.lijn].afwijkingen[ctx.idx].gemeldOp || 'nu';
+    return formState[ctx.afdeling].veiligheid[ctx.idx].gemeldOp || 'nu';
+  } catch(e){ return 'nu'; }
+}
+function openAftekenen(titel, uitleg, actie, vereistCcpGemba, toonLegeShiftWaarschuwing){
+  if(!INGELOGD){ console.warn('openAftekenen geblokkeerd: niet ingelogd.'); return; }
+  document.getElementById('aft-titel').textContent = titel;
+  document.getElementById('aft-uitleg').textContent = uitleg;
+  document.getElementById('aft-avatar').textContent = INGELOGD.naam.split(' ').map(function(w){return w[0];}).join('').slice(0,2).toUpperCase();
+  document.getElementById('aft-naam-display').textContent = INGELOGD.naam+' · '+INGELOGD.rol;
+  document.getElementById('aft-btn').textContent = '✓ Bevestigen als '+INGELOGD.naam;
+  document.getElementById('aft-lege-shift-warn').style.display = toonLegeShiftWaarschuwing ? 'flex' : 'none';
+  document.getElementById('aft-ccp-gemba-wrap').style.display = vereistCcpGemba ? 'block' : 'none';
+  document.getElementById('aft-gemba').checked = false;
+  pendingAction = typeof actie==='function' ? actie : null;
+  updateAftBtnState();
+  openModal('modal-aftekenen');
+}
+// HACCP/CCP- en Gemba-vinkjes gelden alleen waar expliciet vereist (Overdracht) — niet bij elk
+// gebruik van deze gedeelde modal (bv. een afwijking verwijderen of een werkorder-status bijwerken
+// hoeft geen CCP-attestatie). Zonder die context staat de knop gewoon meteen klikbaar.
+function updateAftBtnState(){
+  const vereist = document.getElementById('aft-ccp-gemba-wrap').style.display !== 'none';
+  const btn = document.getElementById('aft-btn');
+  btn.disabled = vereist && !document.getElementById('aft-gemba').checked;
+}
+function confirmAftekenen(){
+  if(document.getElementById('aft-btn').disabled) return;
+  if(pendingAction) pendingAction();
+  closeModal('modal-aftekenen');
+}
+
+function bouwSharePointPayload(afdeling){
+  const fs = formState[afdeling];
+  const shiftRapport = { contentType:'ShiftRapporten', afdeling:afdeling, datum:fs.datum, shift:fs.shift, teamleider:fs.teamleider, status:fs.status,
+    rondeGelopen: (fs.rondeMomenten||[]).length>0, rondeMomenten: fs.rondeMomenten||[], rondeReden: fs.rondeReden||'',
+    rondeVereistAantal: CONFIG.rondeVereistAantal,
+    personeleBezetting: fs.personeleBezetting||'', algemenePuntenDagoverleg: fs.algemenePuntenDagoverleg||'',
+    ccpGecontroleerd: false, gembaAfgestemd: !!fs.gembaAfgestemd,
+    actiesVolgendeShift:fs.actiesVolgendeShift, voorbereiding: fs.voorbereiding!=null?fs.voorbereiding:null,
+    overgedragenDoor: fs.overgedragenDoor||null, overgedragenOp: fs.overgedragenOp||null };
+  const shiftKpi = Object.keys(fs.lijnen).map(function(lijn){
+    const t = berekenLijnTotalen(afdeling, lijn);
+    return {contentType:'ShiftKPI', afdeling:afdeling, lijn:lijn, wasteKg:t.waste, reworkKg:t.rework, stilstandMin:t.stilstand,
+      schoonmaakStatus: fs.lijnen[lijn].schoonmaakStatus||null, bron:'optelsom van Afwijking-records'};
+  });
+  const afwijkingen = [];
+  Object.keys(fs.lijnen).forEach(function(lijn){
+    fs.lijnen[lijn].afwijkingen.forEach(function(a){
+      afwijkingen.push({contentType:'Afwijking', afdeling:afdeling, lijn:lijn, categorie:'Productie-afwijking', omschrijving:a.omschrijving, effectImpact:a.impact, oorzaak:a.oorzaak,
+        correctief:a.correctief, preventief:a.preventief, wasteKg:a.wasteKg, reworkKg:a.reworkKg, stilstandMin:a.stilstandMin, extraWerkMin:a.extraWerkMin||0,
+        wasteReden:a.wasteReden||null, reworkReden:a.reworkReden||null, stilstandReden:a.stilstandReden||null, extrawerkReden:a.extrawerkReden||null,
+        drempelOverschreden:a.drempelOverschreden,
+        escalatieniveau:a.escalatieniveau, vervolgactie:a.vervolgactie, prioriteit:a.prioriteit, toegewezen:a.toegewezen||null, gemeldOp:a.gemeldOp});
+    });
+  });
+  const mededelingen = [];
+  fs.veiligheid.forEach(function(v){
+    if(v.categorie==='Planning') mededelingen.push({contentType:'Mededeling', afdeling:afdeling, categorie:v.categorie, omschrijving:v.omschrijving, vervolgactie:v.vervolgactie, gemeldOp:v.gemeldOp});
+    // heeftFoto: alleen een aanwezigheidsvlag in de payload-log, geen base64-data — dat zou de console
+    // dichtslibben. In SharePoint wordt dit de native Attachments-functie op het lijst-item.
+    else afwijkingen.push({contentType:'Afwijking', afdeling:afdeling, lijn:'Veiligheid/Voedselveiligheid', categorie:v.categorie, omschrijving:v.omschrijving, effectImpact:v.impact, oorzaak:v.oorzaak,
+      correctief:v.correctief, preventief:v.preventief, wasteKg:null, reworkKg:null, stilstandMin:null, drempelOverschreden:null, escalatieniveau:v.escalatieniveau,
+      vervolgactie:v.vervolgactie, prioriteit:v.prioriteit, toegewezen:null, gemeldOp:v.gemeldOp, heeftFoto: !!v.foto, vreemdVoorwerp: !!v.vreemdVoorwerp});
+  });
+  const blokkades = fs.blokkades.map(function(b){
+    return {contentType:'Blokkade', afdeling:afdeling, type:b.type, artikel:b.artikel, batchTht:b.batchTht, hoeveelheid:b.hoeveelheid||null, locatie:b.locatie||null,
+      reden:b.reden, status:b.status, heeftFoto: !!b.foto, gemeldDoor:b.gemeldDoor||null, gemeldOp:b.gemeldOp,
+      vrijgegevenDoor:b.vrijgegevenDoor||null, vrijgegevenOp:b.vrijgegevenOp||null};
+  });
+  const eWegingen = fs.eWegingen.map(function(e){
+    return {contentType:'EWegingUitstoot', afdeling:afdeling, lijn:e.lijn, artikelBatch:e.artikelBatch, tijdvak:e.tijdvak, soortUitstoot:e.soortUitstoot,
+      hoeveelheid:e.hoeveelheid, actie:e.actie, gemeldDoor:e.gemeldDoor||null, gemeldOp:e.gemeldOp};
+  });
+  return {shiftRapport:shiftRapport, shiftKpi:shiftKpi, afwijkingen:afwijkingen, mededelingen:mededelingen, blokkades:blokkades, eWegingen:eWegingen};
+}
+// Verstuurt de payload naar de echte SharePoint-lijsten.
+// Schrijft eerst ShiftRapporten (geeft een ID terug), dan alle Afwijkingen/etc. met dat ShiftID.
+// Bij een fout wordt de fout getoond maar de app-staat niet teruggedraaid — de data staat al in
+// formState en kan bij een volgende Overdracht opnieuw verstuurd worden.
+async function logSharePointPayload(afdeling, actie){
+  const payload = bouwSharePointPayload(afdeling);
+
+  // Console-log altijd als debug-referentie
+  console.group('SharePoint payload — ' + afdeling + ' (' + actie + ')');
+  console.log('ShiftRapporten:', payload.shiftRapport);
+  console.log('Afwijkingen (' + payload.afwijkingen.length + '):', payload.afwijkingen);
+  console.log('Mededelingen (' + payload.mededelingen.length + '):', payload.mededelingen);
+  console.log('Blokkades (' + payload.blokkades.length + '):', payload.blokkades);
+  console.log('E-wegingen (' + payload.eWegingen.length + '):', payload.eWegingen);
+  console.groupEnd();
+
+  // Schrijven naar SharePoint alleen als we een actieve sessie hebben
+  if(!SP_DIGEST){
+    console.warn('Geen SP_DIGEST beschikbaar — data niet opgeslagen naar SharePoint (offline demo-modus).');
+    return payload;
+  }
+
+  try {
+    const sr = payload.shiftRapport;
+
+    // 1. ShiftRapport aanmaken of bijwerken
+    const shiftItem = await spPost(SP_LIJSTEN.shiftRapporten, {
+      Title:                    sr.afdeling + '-' + sr.datum + '-' + sr.shift,
+      Afdeling:                 sr.afdeling,
+      Datum:                    sr.datum + 'T00:00:00Z',
+      Shift:                    sr.shift,
+      Status:                   sr.status,
+      RondeMomenten:            sr.rondeMomenten.join(';'),
+      RondeReden:               sr.rondeReden || '',
+      PersoneleBezetting:       sr.personeleBezetting || '',
+      AlgemenePuntenDagoverleg: sr.algemenePuntenDagoverleg || '',
+      ActiesVolgendeShift:      sr.actiesVolgendeShift || '',
+      Voorbereiding:            sr.voorbereiding || '',
+      GembaAfgestemd:           sr.gembaAfgestemd || false,
+      OvergedragenOp:           sr.overgedragenOp ? new Date().toISOString() : null
+    });
+    const shiftId = shiftItem.ID;
+    console.info('ShiftRapporten aangemaakt, ID:', shiftId);
+
+    // 2. Afwijkingen
+    for(const a of payload.afwijkingen){
+      await spPost(SP_LIJSTEN.afwijkingen, {
+        Title:               a.omschrijving.substring(0, 255),
+        ShiftIDId:           shiftId,                // Lookup-veld: kolomnaam + 'Id'
+        Afdeling:            a.afdeling,
+        Lijn:                a.lijn || '',
+        Categorie:           a.categorie,
+        Omschrijving:        a.omschrijving || '',
+        EffectImpact:        a.effectImpact || '',
+        Oorzaak:             a.oorzaak || '',
+        Correctief:          a.correctief || '',
+        Preventief:          a.preventief || '',
+        WasteKg:             a.wasteKg || 0,
+        ReworkKg:            a.reworkKg || 0,
+        StilstandMin:        a.stilstandMin || 0,
+        ExtraWerkMin:        a.extraWerkMin || 0,
+        WasteReden:          a.wasteReden || '',
+        ReworkReden:         a.reworkReden || '',
+        StilstandReden:      a.stilstandReden || '',
+        ExtraWerkReden:      a.extrawerkReden || '',
+        DrempelOverschreden: a.drempelOverschreden || false,
+        EscalatieNiveau:     a.escalatieniveau || 'Routinematig',
+        Vervolgactie:        a.vervolgactie || '',
+        Prioriteit:          a.prioriteit || 'Laag',
+        DagoverlegStatus:    'Open',
+        VreemdVoorwerp:      a.vreemdVoorwerp || false,
+        GemeldOp:            new Date().toISOString()
+      });
+    }
+
+    // 3. Mededelingen (Planning-categorie)
+    for(const m of payload.mededelingen){
+      await spPost(SP_LIJSTEN.afwijkingen, {
+        Title:           m.omschrijving.substring(0, 255),
+        ShiftIDId:       shiftId,
+        Afdeling:        m.afdeling,
+        Categorie:       m.categorie,
+        Omschrijving:    m.omschrijving || '',
+        Vervolgactie:    m.vervolgactie || '',
+        EscalatieNiveau: 'Routinematig',
+        DagoverlegStatus: 'Open',
+        GemeldOp:        new Date().toISOString()
+      });
+    }
+
+    // 4. Blokkades
+    for(const b of payload.blokkades){
+      await spPost(SP_LIJSTEN.afwijkingen, {
+        Title:          (b.artikel + ' – ' + b.batchTht).substring(0, 255),
+        ShiftIDId:      shiftId,
+        Afdeling:       b.afdeling,
+        Categorie:      'Blokkade',
+        BlokkadeType:   b.type,
+        Omschrijving:   b.artikel || '',
+        BatchTht:       b.batchTht || '',
+        Hoeveelheid:    b.hoeveelheid || '',
+        Locatie:        b.locatie || '',
+        Oorzaak:        b.reden || '',
+        BlokkadeStatus: b.status,
+        GemeldOp:       new Date().toISOString()
+      });
+    }
+
+    // 5. E-wegingen
+    for(const e of payload.eWegingen){
+      await spPost(SP_LIJSTEN.afwijkingen, {
+        Title:              (e.artikelBatch + ' – ' + e.soortUitstoot).substring(0, 255),
+        ShiftIDId:          shiftId,
+        Afdeling:           e.afdeling,
+        Categorie:          'EWegingUitstoot',
+        Lijn:               e.lijn || '',
+        Omschrijving:       e.artikelBatch || '',
+        Tijdvak:            e.tijdvak || '',
+        SoortUitstoot:      e.soortUitstoot || '',
+        HoeveelheidUitstoot: e.hoeveelheid || 0,
+        Correctief:         e.actie || '',
+        GemeldOp:           new Date().toISOString()
+      });
+    }
+
+    console.info('Alle items succesvol opgeslagen naar SharePoint. ShiftID:', shiftId);
+    toonOpslaanBevestiging(shiftId);
+
+  } catch(fout){
+    console.error('Fout bij opslaan naar SharePoint:', fout);
+    toonFoutBanner(
+      'Data opgeslagen in de app, maar <b>niet naar SharePoint verstuurd</b>: ' + fout.message +
+      '<br>Controleer de console voor details. De data staat nog in de app en kan opnieuw worden verstuurd.'
+    );
+  }
+
+  return payload;
+}
+
+function toonOpslaanBevestiging(shiftId){
+  const el = document.getElementById('sp-status');
+  if(!el) return;
+  el.style.display = 'flex';
+  el.className = 'bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2';
+  el.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span> Opgeslagen naar SharePoint (ShiftID: ' + shiftId + ')';
+  setTimeout(function(){ el.style.display = 'none'; }, 5000);
+}
+
+// ============ CONFIGURATIE ============
+// Elke sectie toont één config-type. Wijzigingen zijn in-memory en hebben direct effect op de app
+// (bijv. drempel aanpassen → escalatie-preview in de modal verandert meteen). In productie lees je
+// dezelfde data uit de SharePoint Config-lijst via Power Apps connectors of een REST-call.
+
+function renderConfigPagina(){
+  const cont = document.getElementById('config-secties');
+  cont.innerHTML = [
+    renderConfigProductielijnen(),
+    renderConfigVervolgacties(),
+    renderConfigDrempelwaarden(),
+    renderConfigNotificatieRouting(),
+    renderConfigSchoonmaakStatussen(),
+    renderConfigRondeInstellingen(),
+    renderConfigKpiRedenen()
+  ].join('');
+  renderConfigPreview();
+}
+
+// ---- Hulpfuncties ----
+function cfCard(titel, icon, kleur, inhoud){
+  return '<section class="bg-paper border border-border rounded-lg overflow-hidden mb-grid-gap">'
+    + '<div class="bg-surface-container px-card-padding py-2.5 border-b border-border flex items-center gap-2">'
+    + '<span class="material-symbols-outlined text-[18px]" style="color:'+kleur+'">'+icon+'</span>'
+    + '<h3 class="text-label-ui font-bold">'+titel+'</h3></div>'
+    + '<div class="p-card-padding">'+inhoud+'</div></section>';
+}
+function cfBadge(label, kleur){
+  return '<span class="font-mono-num text-[10px] font-bold text-white px-2 py-0.5 rounded" style="background:'+kleur+'">'+esc(label)+'</span>';
+}
+
+// 1. Productielijnen
+function renderConfigProductielijnen(){
+  let html = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">';
+  ['Productie','Inpak'].forEach(function(afd){
+    html += '<div><p class="text-metadata-caps text-muted uppercase mb-2">'+afd+'</p>'
+      + '<div class="space-y-1.5" id="cfg-lijnen-'+afd+'"></div>'
+      + '<button class="mt-2 text-xs text-secondary font-bold hover:underline flex items-center gap-1" onclick="cfVoegLijnToe(\''+afd+'\')">'
+      + '<span class="material-symbols-outlined text-[14px]">add_circle</span> Lijn toevoegen</button>'
+      + '</div>';
+  });
+  html += '</div>';
+  setTimeout(function(){ cfRenderLijnen(); }, 0);
+  return cfCard('Productielijnen', 'settings_input_component', '#2c694e', html);
+}
+function cfRenderLijnen(){
+  ['Productie','Inpak'].forEach(function(afd){
+    const cont = document.getElementById('cfg-lijnen-'+afd);
+    if(!cont) return;
+    cont.innerHTML = CONFIG.productielijnen[afd].map(function(lijn, i){
+      return '<div class="flex items-center gap-2 bg-surface-container-low rounded px-2.5 py-1.5">'
+        + '<input class="flex-1 bg-transparent text-sm outline-none" value="'+esc(lijn)+'" onchange="cfUpdateLijn(\''+afd+'\','+i+',this.value)">'
+        + '<button class="text-danger hover:opacity-70 text-[12px]" onclick="cfVerwijderLijn(\''+afd+'\','+i+')" title="Verwijderen"><span class="material-symbols-outlined text-[16px]">delete</span></button>'
+        + '</div>';
+    }).join('');
+  });
+}
+function cfVoegLijnToe(afd){ CONFIG.productielijnen[afd].push('Nieuwe lijn'); cfRenderLijnen(); cfToepassenEffecten(); }
+function cfUpdateLijn(afd, i, val){
+  CONFIG.productielijnen[afd][i] = val.trim() || CONFIG.productielijnen[afd][i];
+  cfToepassenEffecten();
+}
+function cfVerwijderLijn(afd, i){
+  if(CONFIG.productielijnen[afd].length<=1){ alert('Minimaal één lijn per afdeling vereist.'); return; }
+  CONFIG.productielijnen[afd].splice(i,1);
+  cfRenderLijnen(); cfToepassenEffecten();
+}
+
+// 2. Vervolgactie-routes
+function renderConfigVervolgacties(){
+  let html = '<div class="space-y-2" id="cfg-routes-lijst"></div>'
+    + '<button class="mt-2 text-xs text-secondary font-bold hover:underline flex items-center gap-1" onclick="cfVoegRouteToe()">'
+    + '<span class="material-symbols-outlined text-[14px]">add_circle</span> Route toevoegen</button>';
+  setTimeout(function(){ cfRenderRoutes(); }, 0);
+  return cfCard('Vervolgactie-routes', 'alt_route', '#6D28D9', html);
+}
+function cfRenderRoutes(){
+  const cont = document.getElementById('cfg-routes-lijst');
+  if(!cont) return;
+  cont.innerHTML = CONFIG.vervolgactieRoutes.map(function(r, i){
+    return '<div class="flex items-center gap-2 flex-wrap bg-surface-container-low rounded px-2.5 py-1.5">'
+      + '<input class="w-16 bg-transparent text-xs font-mono-num font-bold outline-none border-b border-border" value="'+esc(r.code)+'" onchange="cfUpdateRoute('+i+',\'code\',this.value)" title="Code (gebruikt als sleutel)">'
+      + '<input class="flex-1 bg-transparent text-sm outline-none border-b border-border min-w-[100px]" value="'+esc(r.naam)+'" onchange="cfUpdateRoute('+i+',\'naam\',this.value)">'
+      + '<input type="color" class="w-7 h-7 rounded cursor-pointer border border-border" value="'+r.kleur+'" onchange="cfUpdateRoute('+i+',\'kleur\',this.value)" title="Kleur">'
+      + cfBadge(r.code, r.kleur)
+      + '<button class="text-danger hover:opacity-70" onclick="cfVerwijderRoute('+i+')" title="Verwijderen"><span class="material-symbols-outlined text-[16px]">delete</span></button>'
+      + '</div>';
+  }).join('');
+}
+function cfVoegRouteToe(){ CONFIG.vervolgactieRoutes.push({code:'NIEUW',naam:'Nieuwe route',kleur:'#6B7280'}); cfRenderRoutes(); cfToepassenEffecten(); }
+function cfUpdateRoute(i, veld, val){ CONFIG.vervolgactieRoutes[i][veld] = val; cfRenderRoutes(); cfToepassenEffecten(); }
+function cfVerwijderRoute(i){
+  if(CONFIG.vervolgactieRoutes.length<=1){ alert('Minimaal één route vereist.'); return; }
+  CONFIG.vervolgactieRoutes.splice(i,1); cfRenderRoutes(); cfToepassenEffecten();
+}
+
+// 3. Drempelwaarden
+function renderConfigDrempelwaarden(){
+  const d = CONFIG.drempelwaarden;
+  const html = '<p class="text-xs text-muted mb-3">Waarden bepalen of een afwijking de drempel overschrijdt en daarmee automatisch naar escalatieniveau Aandachtspunt of hoger gaat (BRCGS/IFS). Verander een waarde en open direct een nieuwe afwijking om het effect te zien.</p>'
+    + '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">'
+    + cfDrempelVeld('Waste KG', 'wasteKg', d.wasteKg, 'kg')
+    + cfDrempelVeld('Stilstand min', 'stilstandMin', d.stilstandMin, 'min')
+    + cfDrempelVeld('Extra werk min', 'extraWerkMin', d.extraWerkMin, 'min')
+    + '</div>';
+  return cfCard('Drempelwaarden escalatie', 'warning', '#D97706', html);
+}
+function cfDrempelVeld(label, sleutel, waarde, eenheid){
+  return '<div class="bg-surface-container-low rounded-lg p-3">'
+    + '<p class="text-micro-caption text-muted uppercase mb-1">'+label+'</p>'
+    + '<div class="flex items-baseline gap-2">'
+    + '<input type="number" class="w-20 font-mono-num text-xl font-bold bg-transparent outline-none border-b-2 border-secondary text-ink" value="'+waarde+'" min="1" onchange="cfUpdateDrempel(\''+sleutel+'\',this.value)">'
+    + '<span class="text-sm text-muted">'+eenheid+'</span>'
+    + '</div></div>';
+}
+function cfUpdateDrempel(sleutel, val){
+  const n = Number(val);
+  if(n>0) CONFIG.drempelwaarden[sleutel] = n;
+}
+
+// 4. Notificatie-routing
+function renderConfigNotificatieRouting(){
+  const r = CONFIG.notificatieRouting;
+  const html = '<p class="text-xs text-muted mb-3">Bij Overdracht stuurt Power Automate een mail naar de hier ingestelde rol/persoon. In productie is dit een e-mailadres of een M365-groep.</p>'
+    + '<div class="space-y-2" id="cfg-notif-lijst"></div>';
+  setTimeout(function(){
+    const cont = document.getElementById('cfg-notif-lijst');
+    if(!cont) return;
+    cont.innerHTML = Object.keys(r).map(function(trigger){
+      return '<div class="flex items-center gap-3 flex-wrap">'
+        + '<span class="text-label-ui font-bold w-40 shrink-0">'+esc(trigger)+'</span>'
+        + '<span class="material-symbols-outlined text-[16px] text-muted">arrow_forward</span>'
+        + '<input class="flex-1 bg-surface-container-low border border-border rounded px-2 py-1 text-sm outline-none focus:border-secondary min-w-[160px]" value="'+esc(r[trigger])+'" onchange="cfUpdateNotif(\''+trigger+'\',this.value)">'
+        + '</div>';
+    }).join('');
+  }, 0);
+  return cfCard('Notificatie-routing (Power Automate)', 'notifications_active', '#C0392B', html);
+}
+function cfUpdateNotif(trigger, val){ CONFIG.notificatieRouting[trigger] = val; }
+
+// 5. Schoonmaak-statussen
+function renderConfigSchoonmaakStatussen(){
+  let html = '<p class="text-xs text-muted mb-3">Statusopties per lijn bij de shift-overdracht (5S). Zichtbaar als keuze-knoppen onder elke lijnkaart.</p>'
+    + '<div class="space-y-2" id="cfg-5s-lijst"></div>'
+    + '<button class="mt-2 text-xs text-secondary font-bold hover:underline flex items-center gap-1" onclick="cfVoeg5sToe()">'
+    + '<span class="material-symbols-outlined text-[14px]">add_circle</span> Status toevoegen</button>';
+  setTimeout(function(){ cfRender5s(); }, 0);
+  return cfCard('Schoonmaak / 5S-statussen', 'cleaning_services', '#2c694e', html);
+}
+function cfRender5s(){
+  const cont = document.getElementById('cfg-5s-lijst');
+  if(!cont) return;
+  cont.innerHTML = CONFIG.schoonmaakStatussen.map(function(s, i){
+    return '<div class="flex items-center gap-2 flex-wrap bg-surface-container-low rounded px-2.5 py-1.5">'
+      + '<input class="w-20 bg-transparent text-xs font-mono-num font-bold outline-none border-b border-border" value="'+esc(s.code)+'" onchange="cfUpdate5s('+i+',\'code\',this.value)" title="Code (interne sleutel)">'
+      + '<input class="flex-1 bg-transparent text-sm outline-none border-b border-border min-w-[80px]" value="'+esc(s.label)+'" onchange="cfUpdate5s('+i+',\'label\',this.value)">'
+      + '<input type="color" class="w-7 h-7 rounded cursor-pointer border border-border" value="'+s.kleur+'" onchange="cfUpdate5s('+i+',\'kleur\',this.value)">'
+      + '<span class="text-xs font-bold text-white px-2 py-0.5 rounded" style="background:'+s.kleur+'">'+esc(s.label)+'</span>'
+      + '<button class="text-danger hover:opacity-70" onclick="cfVerwijder5s('+i+')" title="Verwijderen"><span class="material-symbols-outlined text-[16px]">delete</span></button>'
+      + '</div>';
+  }).join('');
+}
+function cfVoeg5sToe(){ CONFIG.schoonmaakStatussen.push({code:'NIEUW',label:'Nieuwe status',kleur:'#6B7280'}); cfRender5s(); }
+function cfUpdate5s(i, veld, val){ CONFIG.schoonmaakStatussen[i][veld] = val; cfRender5s(); cfToepassenEffecten(); }
+function cfVerwijder5s(i){
+  if(CONFIG.schoonmaakStatussen.length<=1){ alert('Minimaal één status vereist.'); return; }
+  CONFIG.schoonmaakStatussen.splice(i,1); cfRender5s(); cfToepassenEffecten();
+}
+
+// 6. Ronde-instellingen
+function renderConfigRondeInstellingen(){
+  const html = '<p class="text-xs text-muted mb-3">Aantal verplichte rondes per shift — richtlijn/teller in de rondesectie. Geen harde blokkade op afwijkingen invullen. In productie per afdeling/shift-tijdvak instelbaar.</p>'
+    + '<div class="flex items-center gap-4">'
+    + '<div class="bg-surface-container-low rounded-lg p-3 flex items-center gap-3">'
+    + '<span class="material-symbols-outlined text-secondary">verified_user</span>'
+    + '<div><p class="text-micro-caption text-muted uppercase">Verplicht per shift</p>'
+    + '<input type="number" min="1" max="10" class="font-mono-num text-xl font-bold bg-transparent outline-none border-b-2 border-secondary w-12" id="cfg-ronde-aantal" value="'+CONFIG.rondeVereistAantal+'" onchange="cfUpdateRondeAantal(this.value)">'
+    + '</div></div>'
+    + '<p class="text-xs text-muted">Aanbeveling vanuit de Excel-analyse: soms 1, soms 2 genoteerd per shift. Stel in op basis van praktijk.</p>'
+    + '</div>';
+  return cfCard('Ronde-instellingen', 'verified_user', '#2c694e', html);
+}
+function cfUpdateRondeAantal(val){ const n=parseInt(val,10); if(n>=1) CONFIG.rondeVereistAantal=n; }
+
+// 7. KPI-redenen
+function renderConfigKpiRedenen(){
+  const html = '<p class="text-xs text-muted mb-3">De dropdowns die onder Waste, Rework, Stilstand en Extra werk in het afwijkingsformulier verschijnen. Eerste optie moet altijd de lege placeholder zijn (begint met "—").</p>'
+    + '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">'
+    + ['waste','rework','stilstand','extrawerk'].map(function(kpi){
+        const labels = {waste:'Waste',rework:'Rework',stilstand:'Stilstand',extrawerk:'Extra werk'};
+        return '<div>'
+          + '<p class="text-metadata-caps text-muted uppercase mb-1">'+labels[kpi]+'</p>'
+          + '<div class="space-y-1" id="cfg-kpi-'+kpi+'"></div>'
+          + '<button class="mt-1 text-xs text-secondary font-bold hover:underline flex items-center gap-1" onclick="cfVoegKpiRedenToe(\''+kpi+'\')">'
+          + '<span class="material-symbols-outlined text-[14px]">add_circle</span> Optie toevoegen</button>'
+          + '</div>';
+      }).join('')
+    + '</div>';
+  setTimeout(function(){ cfRenderKpiRedenen(); }, 0);
+  return cfCard('KPI-redenen (dropdowns in afwijkingsformulier)', 'format_list_bulleted', '#1D4ED8', html);
+}
+function cfRenderKpiRedenen(){
+  ['waste','rework','stilstand','extrawerk'].forEach(function(kpi){
+    const cont = document.getElementById('cfg-kpi-'+kpi);
+    if(!cont) return;
+    cont.innerHTML = CONFIG.kpiRedenen[kpi].map(function(r, i){
+      return '<div class="flex items-center gap-1.5 bg-surface-container-low rounded px-2 py-1">'
+        + '<input class="flex-1 bg-transparent text-xs outline-none" value="'+esc(r)+'" onchange="cfUpdateKpiReden(\''+kpi+'\','+i+',this.value)">'
+        + (i===0 ? '<span class="text-[9px] text-muted uppercase font-bold">Placeholder</span>'
+                 : '<button class="text-danger hover:opacity-70" onclick="cfVerwijderKpiReden(\''+kpi+'\','+i+')" title="Verwijderen"><span class="material-symbols-outlined text-[14px]">delete</span></button>')
+        + '</div>';
+    }).join('');
+  });
+}
+function cfVoegKpiRedenToe(kpi){ CONFIG.kpiRedenen[kpi].push('Nieuwe optie'); cfRenderKpiRedenen(); cfToepassenEffecten(); }
+function cfUpdateKpiReden(kpi, i, val){ CONFIG.kpiRedenen[kpi][i]=val; cfToepassenEffecten(); }
+function cfVerwijderKpiReden(kpi, i){
+  if(i===0){ alert('De eerste optie is de lege placeholder en kan niet worden verwijderd.'); return; }
+  CONFIG.kpiRedenen[kpi].splice(i,1); cfRenderKpiRedenen(); cfToepassenEffecten();
+}
+
+// Live effect: wijzigingen propageren meteen naar de dropdowns en lijn-selecties in de app
+function cfToepassenEffecten(){
+  // KPI-reden selects in modal-nieuw herbouwen
+  ['waste','rework','stilstand','extrawerk'].forEach(function(kpi){
+    const el = document.getElementById('nf-'+kpi+'-reden');
+    if(el) el.innerHTML = CONFIG.kpiRedenen[kpi].map(function(r){return '<option value="'+r+'">'+r+'</option>';}).join('');
+  });
+  // Vervolgactie-select herbouwen
+  const rv = document.getElementById('nf-vervolgactie');
+  if(rv) rv.innerHTML = CONFIG.vervolgactieRoutes.map(function(r){return '<option value="'+r.code+'">'+r.naam+'</option>';}).join('');
+  // Lijn-select herbouwen (voor de afwijkingen-modal)
+  toggleLijnVeld();
+  // Huidige shift herschikken als de lijn-namen veranderd zijn
+  if(document.getElementById('page-shift').classList.contains('active')) renderHuidigeShift();
+}
+
+// SharePoint-rijen preview
+function renderConfigPreview(){
+  const type = document.getElementById('config-preview-type') && document.getElementById('config-preview-type').value;
+  const cont = document.getElementById('config-preview-table');
+  if(!cont || !type) return;
+  const rijen = cfBouwSpRijen(type);
+  if(!rijen.length){ cont.innerHTML='<p class="text-xs text-muted italic">Geen rijen voor dit type.</p>'; return; }
+  const kolommen = Object.keys(rijen[0]);
+  cont.innerHTML = '<table class="w-full text-left text-[10px] border-collapse">'
+    + '<thead><tr>'+kolommen.map(function(k){ return '<th class="px-1.5 py-1 bg-surface-container text-muted uppercase font-bold border-b border-border whitespace-nowrap">'+k+'</th>'; }).join('')+'</tr></thead>'
+    + '<tbody>'+rijen.map(function(r, i){
+        return '<tr class="'+(i%2===0?'':'bg-surface-container-lowest')+' hover:bg-surface-container-low">'
+          + kolommen.map(function(k){
+              const v = r[k]!==null && r[k]!==undefined ? String(r[k]) : '';
+              return '<td class="px-1.5 py-1 border-b border-border/50 whitespace-nowrap max-w-[120px] truncate" title="'+esc(v)+'">'+esc(v)+'</td>';
+            }).join('')
+          + '</tr>';
+      }).join('')
+    + '</tbody></table>';
+}
+function cfBouwSpRijen(type){
+  // Elk type mappt 1:1 naar de SharePoint Config-lijst-kolommen zoals beschreven in de architectuur.
+  // Title = de unieke sleutel, ConfigType = het type, de overige velden zijn de waarden.
+  if(type==='Productielijn'){
+    const rijen=[];
+    ['Productie','Inpak'].forEach(function(afd){ CONFIG.productielijnen[afd].forEach(function(l){ rijen.push({Title:l, ConfigType:'Productielijn', Label:l, Afdeling:afd, Volgorde:rijen.length+1, Actief:'Ja'}); }); });
+    return rijen;
+  }
+  if(type==='VervolgactieRoute'){
+    return CONFIG.vervolgactieRoutes.map(function(r,i){return {Title:r.code, ConfigType:'VervolgactieRoute', Label:r.naam, Kleur:r.kleur, Volgorde:i+1, Actief:'Ja'};});
+  }
+  if(type==='Drempelwaarde'){
+    return [
+      {Title:'WasteKg', ConfigType:'Drempelwaarde', Label:'Waste-drempel', WaardeNumeriek1:CONFIG.drempelwaarden.wasteKg, WaardeTekst:'kg', Actief:'Ja'},
+      {Title:'StilstandMin', ConfigType:'Drempelwaarde', Label:'Stilstand-drempel', WaardeNumeriek1:CONFIG.drempelwaarden.stilstandMin, WaardeTekst:'min', Actief:'Ja'},
+      {Title:'ExtraWerkMin', ConfigType:'Drempelwaarde', Label:'Extra werk-drempel', WaardeNumeriek1:CONFIG.drempelwaarden.extraWerkMin, WaardeTekst:'min', Actief:'Ja'}
+    ];
+  }
+  if(type==='NotificatieRouting'){
+    return Object.keys(CONFIG.notificatieRouting).map(function(k){return {Title:k, ConfigType:'NotificatieRouting', Label:CONFIG.notificatieRouting[k], WaardeTekst:CONFIG.notificatieRouting[k], Actief:'Ja'};});
+  }
+  if(type==='ShiftTijdvenster'){
+    return [
+      {Title:'Ochtend', ConfigType:'ShiftTijdvenster', Label:'Ochtend', WaardeNumeriek1:5, WaardeNumeriek2:14, Actief:'Ja'},
+      {Title:'Avond', ConfigType:'ShiftTijdvenster', Label:'Avond', WaardeNumeriek1:14, WaardeNumeriek2:23, Actief:'Ja'},
+      {Title:'Nacht', ConfigType:'ShiftTijdvenster', Label:'Nacht', WaardeNumeriek1:23, WaardeNumeriek2:5, Actief:'Ja'},
+      {Title:'RondeVereistAantal', ConfigType:'ShiftTijdvenster', Label:'Verplichte rondes per shift', WaardeNumeriek1:CONFIG.rondeVereistAantal, Actief:'Ja'}
+    ];
+  }
+  if(type==='SchoonmaakStatus'){
+    return CONFIG.schoonmaakStatussen.map(function(s,i){return {Title:s.code, ConfigType:'SchoonmaakStatus', Label:s.label, Kleur:s.kleur, Volgorde:i+1, Actief:'Ja'};});
+  }
+  if(type==='kpiReden'){
+    const rijen=[];
+    ['waste','rework','stilstand','extrawerk'].forEach(function(kpi){
+      CONFIG.kpiRedenen[kpi].forEach(function(r,i){ if(i>0) rijen.push({Title:kpi+'_'+i, ConfigType:'kpiReden', Label:r, WaardeTekst:kpi, Volgorde:i, Actief:'Ja'}); });
+    });
+    return rijen;
+  }
+  return [];
+}
+
+// ============ INIT ============
+document.getElementById('nf-vervolgactie').innerHTML = CONFIG.vervolgactieRoutes.map(function(r){return '<option value="'+r.code+'">'+r.naam+'</option>';}).join('');
+['waste','rework','stilstand','extrawerk'].forEach(function(kpi){
+  const el = document.getElementById('nf-'+kpi+'-reden');
+  if(el) el.innerHTML = CONFIG.kpiRedenen[kpi].map(function(r){return '<option value="'+r+'">'+r+'</option>';}).join('');
+});
+toggleLijnVeld();
+toggleCategorieVelden();
+
+// Afdeling-switcher al tonen zodat de UI niet blanco is tijdens het laden
+switchAfdeling('Productie');
+renderDagoverleg();
+document.getElementById('shift-sticky-footer').style.display = 'flex';
+
+// Verbinding maken met SharePoint — haalt de ingelogde gebruiker op via de bestaande M365-sessie.
+// Als het bestand wordt geopend vanuit een SharePoint-documentbibliotheek op hetzelfde domein als
+// SHAREPOINT_SITE_URL, werkt dit automatisch. Geen Azure AD-app-registratie nodig voor dit testpad.
+initialiseerSharePoint();
+</script>
+</body>
+</html>
