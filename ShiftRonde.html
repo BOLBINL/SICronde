@@ -73,9 +73,9 @@ tailwind.config = {
 </head>
 <body class="bg-background text-on-surface">
 
-<div id="demo-banner" class="bg-secondary text-white text-center text-[11px] py-1.5 px-3">
-  <b>SharePoint TEST-MODUS</b> — data wordt echt opgeslagen in de lijsten. Login via bestaande M365-sessie (geen Azure AD-registratie nodig). 
-  Stel de <code>SHAREPOINT_SITE_URL</code> in via de Configuratie-pagina of pas 'm aan in de broncode.
+<div id="demo-banner" class="bg-primary text-white text-center text-[11px] py-1.5 px-3">
+  <b>WML Shift Rapportage</b> — Gehost op GitHub Pages · Data via Power Automate → SharePoint. 
+  Vul de Flow-URLs in via <b>Configuratie → Verbinding</b> na het publiceren van de flows.
 </div>
 
 <div id="sp-status" class="bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2" style="display:none">
@@ -103,7 +103,7 @@ tailwind.config = {
       </div>
     </div>
 
-    <div class="flex items-center gap-3 px-3 mb-3 py-2 rounded-lg bg-surface-variant/20" id="tb-user" title="Ingelogd via Microsoft 365">
+    <div class="flex items-center gap-3 px-3 mb-3 py-2 rounded-lg cursor-pointer hover:bg-surface-variant/40 transition-colors" id="tb-user" onclick="uitloggen()" title="Klik om uit te loggen / naam te wijzigen">
       <div class="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold text-label-ui shrink-0" id="tb-user-avatar">RJ</div>
       <div class="min-w-0">
         <p class="text-label-ui text-on-surface truncate" id="tb-user-naam">Richard · Teamleider</p>
@@ -759,97 +759,55 @@ const CONFIG = {
   ]
 };
 
-// ============ SHAREPOINT KOPPELING ============
-// Vul hieronder de URL van jouw SharePoint-site in.
-// Formaat: https://jouwbedrijf.sharepoint.com/sites/JouwSiteNaam
-// Geen trailing slash.
-const SHAREPOINT_SITE_URL = 'https://biscuitinternational.sharepoint.com/sites/BroekopLangedijk';
+// ============ POWER AUTOMATE KOPPELING ============
+// Architectuur: GitHub Pages → Power Automate HTTP-trigger → SharePoint
+// Voordelen: geen CORS, geen Azure AD-app nodig, werkt van elk domein.
+// Vul de FLOW_URLS na het aanmaken en publiceren van de flows.
+// Elke URL krijg je van Power Automate via: Trigger → "URL kopiëren".
 
-// Lijstnamen — pas aan als jouw lijstnamen afwijken van de architectuurnota
-const SP_LIJSTEN = {
-  shiftRapporten: 'ShiftRapporten',
-  afwijkingen:    'ShiftAfwijkingen',
-  config:         'ShiftConfig',
-  werkorders:     'TD_Werkorders'
+const FLOW_URLS = {
+  // Flow 1: ontvangt de volledige shift-payload bij Overdracht
+  // Power Automate-actienaam: "WML – Shift Overdracht Ontvangen"
+  overdracht: '',
+
+  // Flow 2 (toekomst): haal open Dagoverleg-items op
+  getDagoverleg: '',
+
+  // Flow 3 (toekomst): haal vorige shift op voor een afdeling
+  getVorigeShift: ''
 };
 
-// Ingelogde gebruiker — wordt bij opstarten opgehaald via de bestaande M365-browsersessie.
-// Zolang de HTML op hetzelfde SharePoint-domein staat (documentbibliotheek of site-pagina),
-// stuurt de browser automatisch de juiste sessie-cookies mee — geen Azure AD-app nodig.
+// Login zonder SharePoint-context: naam wordt ingevoerd via een eenvoudig dialoogvenster
+// bij het eerste gebruik. Opgeslagen in localStorage zodat je het niet elke keer opnieuw
+// hoeft in te voeren. In een latere fase vervangen door Azure AD SSO (MSAL.js).
 let INGELOGD = null;
-let SP_DIGEST = null; // Request digest voor schrijf-operaties
 
-async function initialiseerSharePoint(){
-  toonLaadStatus('Verbinden met SharePoint...');
-  try {
-    // 1. Haal de ingelogde gebruiker op
-    const userResp = await fetch(SHAREPOINT_SITE_URL + '/_api/web/currentuser', {
-      headers: { 'Accept': 'application/json;odata=nometadata' },
-      credentials: 'include'
-    });
-    if(!userResp.ok) throw new Error('Kan gebruiker niet ophalen — controleer of de site-URL correct is en je ingelogd bent (HTTP ' + userResp.status + ')');
-    const user = await userResp.json();
-    INGELOGD = {
-      naam:  user.Title,
-      email: user.Email,
-      id:    user.Id,
-      rol:   'Teamleider'  // In productie: ophalen uit beveiligingsgroep via /_api/web/sitegroups
-    };
-
-    // 2. Haal de request digest op (vereist voor POST/PATCH-operaties naar SharePoint)
-    const digestResp = await fetch(SHAREPOINT_SITE_URL + '/_api/contextinfo', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json;odata=nometadata' },
-      credentials: 'include'
-    });
-    if(!digestResp.ok) throw new Error('Kan request digest niet ophalen');
-    const digestData = await digestResp.json();
-    SP_DIGEST = digestData.FormDigestValue;
-
-    // Digest verloopt na 30 minuten — automatisch vernieuwen
-    setInterval(async function(){
-      try {
-        const r = await fetch(SHAREPOINT_SITE_URL + '/_api/contextinfo', {
-          method: 'POST',
-          headers: { 'Accept': 'application/json;odata=nometadata' },
-          credentials: 'include'
-        });
-        const d = await r.json();
-        SP_DIGEST = d.FormDigestValue;
-      } catch(e){ console.warn('Digest vernieuwen mislukt:', e); }
-    }, 25 * 60 * 1000);
-
-    verbergLaadStatus();
-    renderTopbarLogin();
-    renderHuidigeShift();
-    console.info('SharePoint-verbinding OK — ingelogd als:', INGELOGD.naam, '(' + INGELOGD.email + ')');
-
-  } catch(e){
-    verbergLaadStatus();
-    toonFoutBanner(
-      'Kan geen verbinding maken met SharePoint. ' + e.message + '<br>' +
-      'Controleer: (1) het bestand staat op <b>' + SHAREPOINT_SITE_URL + '</b>, ' +
-      '(2) je bent ingelogd in Microsoft 365, ' +
-      '(3) de lijstnamen in SP_LIJSTEN kloppen met de werkelijke namen.'
-    );
-    // Fallback: app werkt in offline demo-modus zodat de UI testbaar blijft
-    INGELOGD = {naam:'Offline (demo)', email:'', id:0, rol:'Teamleider'};
-    renderTopbarLogin();
-    renderHuidigeShift();
+function initialiseerLogin(){
+  const opgeslagen = localStorage.getItem('wml_gebruiker');
+  if(opgeslagen){
+    try { INGELOGD = JSON.parse(opgeslagen); }
+    catch(e){ INGELOGD = null; }
   }
+  if(!INGELOGD || !INGELOGD.naam){
+    const naam = prompt('Voer je naam in om in te loggen:\n(Dit wordt opgeslagen als je naam bij shift-overdracht)');
+    if(!naam || !naam.trim()){
+      // Naam geweigerd of leeg: offline demo-modus
+      INGELOGD = {naam:'Demo gebruiker', rol:'Teamleider', offline:true};
+    } else {
+      INGELOGD = {naam: naam.trim(), rol:'Teamleider', offline:false};
+      localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
+    }
+  }
+  renderTopbarLogin();
+  renderHuidigeShift();
+  console.info('Ingelogd als:', INGELOGD.naam);
 }
 
-function toonLaadStatus(tekst){
-  const el = document.getElementById('sp-status');
-  if(el){ el.textContent = tekst; el.style.display = 'flex'; }
-}
-function verbergLaadStatus(){
-  const el = document.getElementById('sp-status');
-  if(el) el.style.display = 'none';
-}
-function toonFoutBanner(html){
-  const el = document.getElementById('sp-fout-banner');
-  if(el){ el.innerHTML = html; el.style.display = 'flex'; }
+// Uitloggen: naam wissen en pagina herladen
+function uitloggen(){
+  localStorage.removeItem('wml_gebruiker');
+  INGELOGD = null;
+  location.reload();
 }
 
 function renderTopbarLogin(){
@@ -862,65 +820,29 @@ function renderTopbarLogin(){
   document.getElementById('tb-user-naam').textContent = INGELOGD.naam + ' · ' + INGELOGD.rol;
 }
 
-// Helper: POST een nieuw item naar een SharePoint-lijst
-async function spPost(lijstNaam, velden){
-  const resp = await fetch(
-    SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + lijstNaam + "')/items",
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Accept':         'application/json;odata=nometadata',
-        'Content-Type':   'application/json;odata=nometadata',
-        'X-RequestDigest': SP_DIGEST
-      },
-      body: JSON.stringify(velden)
-    }
-  );
-  if(!resp.ok){
-    const fout = await resp.text();
-    throw new Error('POST naar ' + lijstNaam + ' mislukt (HTTP ' + resp.status + '): ' + fout);
-  }
-  return await resp.json();
+// Feedback-helpers (hergebruikt door de send-flow-functie)
+function toonLaadStatus(tekst){
+  const el = document.getElementById('sp-status');
+  if(!el) return;
+  el.style.display = 'flex';
+  el.className = 'bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2';
+  el.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">autorenew</span><span>' + tekst + '</span>';
 }
-
-// Helper: PATCH een bestaand item
-async function spPatch(lijstNaam, itemId, velden){
-  const resp = await fetch(
-    SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + lijstNaam + "')/items(" + itemId + ")",
-    {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Accept':           'application/json;odata=nometadata',
-        'Content-Type':     'application/json;odata=nometadata',
-        'X-RequestDigest':  SP_DIGEST,
-        'X-HTTP-Method':    'MERGE',
-        'If-Match':         '*'
-      },
-      body: JSON.stringify(velden)
-    }
-  );
-  if(!resp.ok){
-    const fout = await resp.text();
-    throw new Error('PATCH naar ' + lijstNaam + ' mislukt (HTTP ' + resp.status + '): ' + fout);
-  }
+function verbergLaadStatus(){
+  const el = document.getElementById('sp-status');
+  if(el) el.style.display = 'none';
 }
-
-// Helper: items ophalen met OData-filter
-async function spGet(lijstNaam, filter, select){
-  let url = SHAREPOINT_SITE_URL + "/_api/web/lists/getbytitle('" + lijstNaam + "')/items";
-  const params = [];
-  if(filter) params.push('$filter=' + encodeURIComponent(filter));
-  if(select) params.push('$select=' + encodeURIComponent(select));
-  if(params.length) url += '?' + params.join('&');
-  const resp = await fetch(url, {
-    credentials: 'include',
-    headers: { 'Accept': 'application/json;odata=nometadata' }
-  });
-  if(!resp.ok) throw new Error('GET ' + lijstNaam + ' mislukt (HTTP ' + resp.status + ')');
-  const data = await resp.json();
-  return data.value;
+function toonFoutBanner(html){
+  const el = document.getElementById('sp-fout-banner');
+  if(el){ el.innerHTML = '<span class="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span><span>' + html + '</span>'; el.style.display = 'flex'; }
+}
+function toonOpslaanBevestiging(label){
+  const el = document.getElementById('sp-status');
+  if(!el) return;
+  el.style.display = 'flex';
+  el.className = 'bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2';
+  el.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span><span>Verstuurd naar SharePoint — ' + label + '</span>';
+  setTimeout(function(){ el.style.display = 'none'; }, 5000);
 }
 
 let huidigeAfdeling = 'Productie';
@@ -2281,11 +2203,15 @@ function bouwSharePointPayload(afdeling){
 // Schrijft eerst ShiftRapporten (geeft een ID terug), dan alle Afwijkingen/etc. met dat ShiftID.
 // Bij een fout wordt de fout getoond maar de app-staat niet teruggedraaid — de data staat al in
 // formState en kan bij een volgende Overdracht opnieuw verstuurd worden.
+// ============ POWER AUTOMATE VERSTUREN ============
+// Verstuurt de payload naar Power Automate via een HTTP POST.
+// Power Automate ontvangt de JSON, valideert, en schrijft naar SharePoint.
+// Als FLOW_URLS.overdracht leeg is, wordt alleen naar de console gelogd (demo-modus).
 async function logSharePointPayload(afdeling, actie){
   const payload = bouwSharePointPayload(afdeling);
 
-  // Console-log altijd als debug-referentie
-  console.group('SharePoint payload — ' + afdeling + ' (' + actie + ')');
+  // Altijd naar console voor debugging
+  console.group('Payload — ' + afdeling + ' (' + actie + ')');
   console.log('ShiftRapporten:', payload.shiftRapport);
   console.log('Afwijkingen (' + payload.afwijkingen.length + '):', payload.afwijkingen);
   console.log('Mededelingen (' + payload.mededelingen.length + '):', payload.mededelingen);
@@ -2293,137 +2219,50 @@ async function logSharePointPayload(afdeling, actie){
   console.log('E-wegingen (' + payload.eWegingen.length + '):', payload.eWegingen);
   console.groupEnd();
 
-  // Schrijven naar SharePoint alleen als we een actieve sessie hebben
-  if(!SP_DIGEST){
-    console.warn('Geen SP_DIGEST beschikbaar — data niet opgeslagen naar SharePoint (offline demo-modus).');
+  // Voeg de ingelogde gebruiker toe aan de payload
+  const volledigePayload = Object.assign({}, payload, {
+    verzonden_door: INGELOGD ? INGELOGD.naam : 'Onbekend',
+    verzonden_op:   new Date().toISOString(),
+    actie:          actie
+  });
+
+  if(!FLOW_URLS.overdracht){
+    console.warn('FLOW_URLS.overdracht is nog niet ingesteld — data alleen in console (demo-modus). Vul de URL in via Configuratie → Verbinding.');
     return payload;
   }
 
+  toonLaadStatus('Opslaan naar SharePoint...');
+
   try {
-    const sr = payload.shiftRapport;
-
-    // 1. ShiftRapport aanmaken of bijwerken
-    const shiftItem = await spPost(SP_LIJSTEN.shiftRapporten, {
-      Title:                    sr.afdeling + '-' + sr.datum + '-' + sr.shift,
-      Afdeling:                 sr.afdeling,
-      Datum:                    sr.datum + 'T00:00:00Z',
-      Shift:                    sr.shift,
-      Status:                   sr.status,
-      RondeMomenten:            sr.rondeMomenten.join(';'),
-      RondeReden:               sr.rondeReden || '',
-      PersoneleBezetting:       sr.personeleBezetting || '',
-      AlgemenePuntenDagoverleg: sr.algemenePuntenDagoverleg || '',
-      ActiesVolgendeShift:      sr.actiesVolgendeShift || '',
-      Voorbereiding:            sr.voorbereiding || '',
-      GembaAfgestemd:           sr.gembaAfgestemd || false,
-      OvergedragenOp:           sr.overgedragenOp ? new Date().toISOString() : null
+    const resp = await fetch(FLOW_URLS.overdracht, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(volledigePayload)
     });
-    const shiftId = shiftItem.ID;
-    console.info('ShiftRapporten aangemaakt, ID:', shiftId);
 
-    // 2. Afwijkingen
-    for(const a of payload.afwijkingen){
-      await spPost(SP_LIJSTEN.afwijkingen, {
-        Title:               a.omschrijving.substring(0, 255),
-        ShiftIDId:           shiftId,                // Lookup-veld: kolomnaam + 'Id'
-        Afdeling:            a.afdeling,
-        Lijn:                a.lijn || '',
-        Categorie:           a.categorie,
-        Omschrijving:        a.omschrijving || '',
-        EffectImpact:        a.effectImpact || '',
-        Oorzaak:             a.oorzaak || '',
-        Correctief:          a.correctief || '',
-        Preventief:          a.preventief || '',
-        WasteKg:             a.wasteKg || 0,
-        ReworkKg:            a.reworkKg || 0,
-        StilstandMin:        a.stilstandMin || 0,
-        ExtraWerkMin:        a.extraWerkMin || 0,
-        WasteReden:          a.wasteReden || '',
-        ReworkReden:         a.reworkReden || '',
-        StilstandReden:      a.stilstandReden || '',
-        ExtraWerkReden:      a.extrawerkReden || '',
-        DrempelOverschreden: a.drempelOverschreden || false,
-        EscalatieNiveau:     a.escalatieniveau || 'Routinematig',
-        Vervolgactie:        a.vervolgactie || '',
-        Prioriteit:          a.prioriteit || 'Laag',
-        DagoverlegStatus:    'Open',
-        VreemdVoorwerp:      a.vreemdVoorwerp || false,
-        GemeldOp:            new Date().toISOString()
-      });
+    if(!resp.ok){
+      const tekst = await resp.text();
+      throw new Error('Flow gaf HTTP ' + resp.status + ' terug: ' + tekst);
     }
 
-    // 3. Mededelingen (Planning-categorie)
-    for(const m of payload.mededelingen){
-      await spPost(SP_LIJSTEN.afwijkingen, {
-        Title:           m.omschrijving.substring(0, 255),
-        ShiftIDId:       shiftId,
-        Afdeling:        m.afdeling,
-        Categorie:       m.categorie,
-        Omschrijving:    m.omschrijving || '',
-        Vervolgactie:    m.vervolgactie || '',
-        EscalatieNiveau: 'Routinematig',
-        DagoverlegStatus: 'Open',
-        GemeldOp:        new Date().toISOString()
-      });
-    }
-
-    // 4. Blokkades
-    for(const b of payload.blokkades){
-      await spPost(SP_LIJSTEN.afwijkingen, {
-        Title:          (b.artikel + ' – ' + b.batchTht).substring(0, 255),
-        ShiftIDId:      shiftId,
-        Afdeling:       b.afdeling,
-        Categorie:      'Blokkade',
-        BlokkadeType:   b.type,
-        Omschrijving:   b.artikel || '',
-        BatchTht:       b.batchTht || '',
-        Hoeveelheid:    b.hoeveelheid || '',
-        Locatie:        b.locatie || '',
-        Oorzaak:        b.reden || '',
-        BlokkadeStatus: b.status,
-        GemeldOp:       new Date().toISOString()
-      });
-    }
-
-    // 5. E-wegingen
-    for(const e of payload.eWegingen){
-      await spPost(SP_LIJSTEN.afwijkingen, {
-        Title:              (e.artikelBatch + ' – ' + e.soortUitstoot).substring(0, 255),
-        ShiftIDId:          shiftId,
-        Afdeling:           e.afdeling,
-        Categorie:          'EWegingUitstoot',
-        Lijn:               e.lijn || '',
-        Omschrijving:       e.artikelBatch || '',
-        Tijdvak:            e.tijdvak || '',
-        SoortUitstoot:      e.soortUitstoot || '',
-        HoeveelheidUitstoot: e.hoeveelheid || 0,
-        Correctief:         e.actie || '',
-        GemeldOp:           new Date().toISOString()
-      });
-    }
-
-    console.info('Alle items succesvol opgeslagen naar SharePoint. ShiftID:', shiftId);
-    toonOpslaanBevestiging(shiftId);
+    // Power Automate HTTP-trigger geeft een 202 Accepted terug (asynchroon).
+    // Er is geen body met een ShiftID — dat verwerkt de flow zelf in SharePoint.
+    verbergLaadStatus();
+    toonOpslaanBevestiging(afdeling + ' · ' + new Date().toLocaleTimeString('nl-NL'));
+    console.info('Payload succesvol verstuurd naar Power Automate.');
 
   } catch(fout){
-    console.error('Fout bij opslaan naar SharePoint:', fout);
+    verbergLaadStatus();
     toonFoutBanner(
-      'Data opgeslagen in de app, maar <b>niet naar SharePoint verstuurd</b>: ' + fout.message +
-      '<br>Controleer de console voor details. De data staat nog in de app en kan opnieuw worden verstuurd.'
+      'Payload verstuurd, maar <b>er was een fout</b>: ' + fout.message +
+      '<br>Data staat nog in de app. Probeer opnieuw of controleer de Flow-URL in Configuratie → Verbinding.'
     );
+    console.error('Fout bij versturen naar Power Automate:', fout);
   }
 
   return payload;
 }
 
-function toonOpslaanBevestiging(shiftId){
-  const el = document.getElementById('sp-status');
-  if(!el) return;
-  el.style.display = 'flex';
-  el.className = 'bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2';
-  el.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span> Opgeslagen naar SharePoint (ShiftID: ' + shiftId + ')';
-  setTimeout(function(){ el.style.display = 'none'; }, 5000);
-}
 
 // ============ CONFIGURATIE ============
 // Elke sectie toont één config-type. Wijzigingen zijn in-memory en hebben direct effect op de app
@@ -2433,6 +2272,7 @@ function toonOpslaanBevestiging(shiftId){
 function renderConfigPagina(){
   const cont = document.getElementById('config-secties');
   cont.innerHTML = [
+    renderConfigVerbinding(),
     renderConfigProductielijnen(),
     renderConfigVervolgacties(),
     renderConfigDrempelwaarden(),
@@ -2457,6 +2297,52 @@ function cfBadge(label, kleur){
 }
 
 // 1. Productielijnen
+// Verbinding-sectie — Flow-URLs instellen en gebruiker beheren
+function renderConfigVerbinding(){
+  const html = '<div class="space-y-4">'
+    + '<p class="text-xs text-muted">Kopieer de HTTP POST-URL van elke Power Automate-flow en plak hem hieronder. '
+    + 'Je vindt de URL na het publiceren van de flow via: <b>Trigger → "URL kopiëren"</b>. '
+    + 'Opgeslagen in de browser (localStorage) — blijft staan na sluiten van de tab.</p>'
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 1 — Shift Overdracht (verplicht)</label>'
+    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
+    + 'id="cfg-flow-overdracht" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
+    + 'value="' + esc(FLOW_URLS.overdracht) + '" onchange="cfSlaFlowUrlOp(\'overdracht\',this.value)">'
+    + '<p class="text-micro-caption text-muted mt-0.5">Ontvangt de volledige shift-payload bij elke Overdracht.</p></div>'
+
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 2 — Dagoverleg ophalen (optioneel, later)</label>'
+    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
+    + 'id="cfg-flow-dagoverleg" type="url" placeholder="Nog niet beschikbaar — later toe te voegen" '
+    + 'value="' + esc(FLOW_URLS.getDagoverleg) + '" onchange="cfSlaFlowUrlOp(\'getDagoverleg\',this.value)" disabled></div>'
+
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 3 — Vorige shift ophalen (optioneel, later)</label>'
+    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
+    + 'id="cfg-flow-vorige" type="url" placeholder="Nog niet beschikbaar — later toe te voegen" '
+    + 'value="' + esc(FLOW_URLS.getVorigeShift) + '" onchange="cfSlaFlowUrlOp(\'getVorigeShift\',this.value)" disabled></div>'
+
+    + '<div class="p-3 bg-surface-container-low rounded-lg flex items-center justify-between">'
+    + '<div><p class="text-label-ui font-bold">Ingelogd als: ' + esc(INGELOGD ? INGELOGD.naam : '—') + '</p>'
+    + '<p class="text-micro-caption text-muted">Naam wordt opgeslagen in de browser. Klik om te wijzigen.</p></div>'
+    + '<button class="px-3 py-1.5 border border-border rounded text-xs hover:bg-surface-container transition-colors" onclick="uitloggen()">Naam wijzigen / uitloggen</button>'
+    + '</div></div>';
+  return cfCard('Verbinding — Power Automate Flow-URLs', 'link', '#1D4ED8', html);
+}
+function cfSlaFlowUrlOp(sleutel, url){
+  FLOW_URLS[sleutel] = url.trim();
+  // Persist in localStorage zodat de URL niet kwijtraakt bij page refresh
+  try {
+    const opgeslagen = JSON.parse(localStorage.getItem('wml_flow_urls') || '{}');
+    opgeslagen[sleutel] = url.trim();
+    localStorage.setItem('wml_flow_urls', JSON.stringify(opgeslagen));
+    console.info('Flow-URL opgeslagen:', sleutel, '→', url.trim());
+  } catch(e){ console.warn('Kon Flow-URL niet opslaan in localStorage:', e); }
+}
+function laadOpgeslagenFlowUrls(){
+  try {
+    const opgeslagen = JSON.parse(localStorage.getItem('wml_flow_urls') || '{}');
+    Object.keys(opgeslagen).forEach(function(k){ if(FLOW_URLS.hasOwnProperty(k)) FLOW_URLS[k] = opgeslagen[k]; });
+  } catch(e){ console.warn('Kon Flow-URLs niet laden uit localStorage:', e); }
+}
+
 function renderConfigProductielijnen(){
   let html = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">';
   ['Productie','Inpak'].forEach(function(afd){
@@ -2733,15 +2619,18 @@ document.getElementById('nf-vervolgactie').innerHTML = CONFIG.vervolgactieRoutes
 toggleLijnVeld();
 toggleCategorieVelden();
 
-// Afdeling-switcher al tonen zodat de UI niet blanco is tijdens het laden
+// Herstel opgeslagen Flow-URLs uit localStorage (blijven staan na page refresh)
+laadOpgeslagenFlowUrls();
+
+// UI alvast tonen terwijl login-prompt nog open is
 switchAfdeling('Productie');
 renderDagoverleg();
 document.getElementById('shift-sticky-footer').style.display = 'flex';
 
-// Verbinding maken met SharePoint — haalt de ingelogde gebruiker op via de bestaande M365-sessie.
-// Als het bestand wordt geopend vanuit een SharePoint-documentbibliotheek op hetzelfde domein als
-// SHAREPOINT_SITE_URL, werkt dit automatisch. Geen Azure AD-app-registratie nodig voor dit testpad.
-initialiseerSharePoint();
+// Login: naam invoeren via prompt (opgeslagen in localStorage).
+// Geen SharePoint-sessie of Azure AD nodig — werkt van elk domein incl. GitHub Pages.
+// Wordt later vervangen door MSAL.js SSO wanneer Azure AD-app-registratie klaar is.
+initialiseerLogin();
 </script>
 </body>
 </html>
