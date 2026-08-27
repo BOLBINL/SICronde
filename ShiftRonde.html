@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WML Production — Shift Rapportage</title>
+<title>BINBOL Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -74,8 +74,7 @@ tailwind.config = {
 <body class="bg-background text-on-surface">
 
 <div id="demo-banner" class="bg-primary text-white text-center text-[11px] py-1.5 px-3">
-  <b>WML Shift Rapportage</b> — Gehost op GitHub Pages · Data via Power Automate → SharePoint. 
-  Vul de Flow-URLs in via <b>Configuratie → Verbinding</b> na het publiceren van de flows.
+  <b>Shift Rapportage</b> — 
 </div>
 
 <div id="sp-status" class="bg-secondary/90 text-white text-center text-[11px] py-2 px-3 flex items-center justify-center gap-2" style="display:none">
@@ -861,68 +860,26 @@ function maakLegeShift(afdeling){
 function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function lijnId(naam){ return naam.replace(/[^a-zA-Z0-9]/g,'_'); }
 
-const VERVOLGACTIES = [
-  {id:'va-1', titel:'Verkeerd recept geproduceerd — 200 kg onbruikbaar deeg', afdeling:'Productie', lijn:'Deegmakerij', vervolgactie:'Planner', status:'Open', gemeld:-4, prioriteit:'Midden'},
-  {id:'va-2', titel:'Inpakgewicht ligt 4% boven nominaal', afdeling:'Productie', lijn:'Lijn C', vervolgactie:'R&D', status:'Open', gemeld:-6, prioriteit:'Laag'},
-  {id:'va-3', titel:'Kaaklift inpak: platen scheef en vastgelopen', afdeling:'Inpak', lijn:'Lijn C', vervolgactie:'TD', status:'In behandeling', gemeld:0, prioriteit:'Midden'},
-  {id:'va-4', titel:'Blauw plastic gevonden in gevulde koeken', afdeling:'Productie', lijn:'Veiligheid/Voedselveiligheid', vervolgactie:'QA', status:'In behandeling', gemeld:-1, prioriteit:'Hoog'},
-  {id:'va-5', titel:'Ring vastgelopen in ringen afhaal — 600 kg waste', afdeling:'Productie', lijn:'Lijn B', vervolgactie:'TD', status:'Afgerond', gemeld:-2, prioriteit:'Midden'},
-  {id:'va-6', titel:'Rb kano slechte kwaliteit + schaafstel (325 kg rework)', afdeling:'Inpak', lijn:'Lijn C', vervolgactie:'QA', status:'Open', gemeld:-1, prioriteit:'Midden'}
-];
+// Dagoverleg-items — wordt in productie gevuld vanuit SharePoint (Afwijkingen-lijst,
+// gefilterd op EscalatieNiveau Aandachtspunt/Kritiek + DagoverlegStatus Open/In behandeling).
+// Voorlopig in-memory: items worden toegevoegd via pushNaarDagoverleg() bij elke nieuwe afwijking.
+const VERVOLGACTIES = [];
 
-const TD_WERKORDERS = [
-  {id:'wo-1', titel:'Ring vastgelopen in de ringen afhaal', afdeling:'Productie', lijn:'Lijn B', asset:'Ringen afhaalmachine — Lijn B', status:'Opgelost', prioriteit:'Midden', technicus:'Dennis (TD)', gemeldOp:'17 jun 14:10', opgelostOp:'17 jun 14:35', downtimeProductie:15, downtimeWerkelijk:22, onderdelen:'Geleiding teruggeplaatst, geen vervangend onderdeel nodig'},
-  {id:'wo-2', titel:'Kaaklift inpak: platen scheef en vastgelopen, buffer vol', afdeling:'Inpak', lijn:'Lijn C', asset:'Kaaklift — Lijn C', status:'Wacht op onderdeel', prioriteit:'Midden', technicus:'Mark (TD)', gemeldOp:'18 jun 21:05', opgelostOp:null, downtimeProductie:120, downtimeWerkelijk:null, onderdelen:'Wacht op vervangende geleidingslagers — besteld, levering maandag'},
-  {id:'wo-3', titel:'Oven leeg-platen stopte met draaien', afdeling:'Inpak', lijn:'Lijn C', asset:'Oven leeg-platen transport — Lijn C', status:'Opgelost', prioriteit:'Laag', technicus:'Mark (TD)', gemeldOp:'18 jun 22:40', opgelostOp:'18 jun 22:52', downtimeProductie:15, downtimeWerkelijk:12, onderdelen:'Herstart kaak, geen onderdeel nodig'},
-  {id:'wo-4', titel:'Wals Lijn A draait onregelmatig', afdeling:'Productie', lijn:'Lijn A', asset:'Wals — Lijn A', status:'Gemeld', prioriteit:'Midden', technicus:null, gemeldOp:'19 jun 06:50', opgelostOp:null, downtimeProductie:null, downtimeWerkelijk:null, onderdelen:'Nog niet opgepakt'}
-];
+// TD-werkorders — wordt in productie gevuld vanuit de TD_Werkorders SharePoint-lijst.
+// Voorlopig leeg: teamleiders loggen werkorders via de TD-knop in de app.
+const TD_WERKORDERS = [];
 
-const ARCHIEF = [
-  {datum:'12 dec 2025', shift:'Ochtend', afdeling:'Productie', tl:'Richard', status:'Afgesloten', afgeslotenOp:'13 dec 2025', snapshot:null},
-  {datum:'05 nov 2025', shift:'Avond', afdeling:'Inpak', tl:'Emilia', status:'Afgesloten', afgeslotenOp:'06 nov 2025', snapshot:null},
-  {datum:'22 okt 2025', shift:'Nacht', afdeling:'Productie', tl:'Jorn', status:'Afgesloten', afgeslotenOp:'23 okt 2025', snapshot:null}
-];
+// Archief van overgedragen shiften — groeit aan bij elke Overdracht via verplaatsNaarArchief().
+// In productie: ophalen uit ShiftRapporten (Status = Overgedragen), gesorteerd op datum.
+const ARCHIEF = [];
 
 const formState = { Productie: maakLegeShift('Productie'), Inpak: maakLegeShift('Inpak') };
 
-let GESCHIEDENIS = {
-  Productie: [{
-    datum:'2026-06-18', shift:'Middag', teamleider:'Richard', status:'Overgedragen', overgedragenDoor:'Richard', overgedragenOp:'18 jun 18:05',
-    lijnen:{
-      'Deegmakerij': {afwijkingen:[{omschrijving:'Verkeerd recept geproduceerd', impact:'200 kg onbruikbaar deeg', oorzaak:'Late planningswijziging waarbij de productieaantallen zijn verminderd door een gewijzigde order van de klant.', correctief:'Deeg bewaren en wegwerken bij de volgende run', preventief:'', wasteKg:200, reworkKg:0, stilstandMin:0, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'Planner', prioriteit:'Midden', toegewezen:'', gemeldOp:'18 jun', dagoverlegId:'va-1'}]},
-      'Lijn A': {afwijkingen:[{omschrijving:'Algemene lijnwaste — geen specifieke afwijking gemeld door teamleider', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:30, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}]},
-      'Lijn B': {afwijkingen:[{omschrijving:'Ring is vastgelopen in de ringen afhaal', impact:'600 kg waste', oorzaak:'', correctief:'TD erbij gehaald, die heeft de geleiding terug geplaatst', preventief:'', wasteKg:11, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'TD', prioriteit:'Midden', toegewezen:'', gemeldOp:'17 jun'}]},
-      'Lijn C': {afwijkingen:[
-        {omschrijving:'Koeken zonder amandelen', impact:'20 minuten rework', oorzaak:'Vergeten de amandelmachine aan te zetten.', correctief:'Amandelmachine aangezet en inpak geïnformeerd over de koeken zonder amandel', preventief:'Opstart checklist aanpassen met check amandelmachine.', wasteKg:0, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'},
-        {omschrijving:'Inpakgewicht ligt 4% boven nominaal', impact:'4% overgewicht', oorzaak:'Productiestandaarden zijn incorrect', correctief:'Deeggewicht 10 gram omlaag gezet, vullinggewicht 5 gram omlaag gezet per rij', preventief:'Productiestandaard wijzigen', wasteKg:0, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'R&D', prioriteit:'Laag', toegewezen:'', gemeldOp:'12 jun'},
-        {omschrijving:'Algemene lijnwaste — geen specifieke afwijking gemeld door teamleider', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:9, reworkKg:0, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}
-      ]}
-    },
-    veiligheid:[{categorie:'Voedselveiligheid', omschrijving:'Blauw plastic gevonden in de gevulde koeken', impact:'', oorzaak:'Een deel van een zak spijs is in de spijskuip beland. De spijsmaker heeft de zak kapot gesneden.', correctief:'Koeken geblokkeerd. Blokkadeformulier ingevuld. QA geïnformeerd.', preventief:'De spijsmaker trainen op het juist snijden van de zakken spijs.', vervolgactie:'QA', prioriteit:'Hoog', escalatieniveau:'Kritiek', gemeldOp:'18 jun', dagoverlegId:'va-4'}],
-    rondeGelopen:true, rondeMomenten:['17:00','20:00'], rondeReden:'',
-    actiesVolgendeShift:'Productielijn 2 voor donderdag omgedraaid i.v.m. amandelaroma over THT-verlenging. Alle jongens de HACCP-cursus gedaan.', notificaties:[]
-  }],
-  Inpak: [{
-    datum:'2026-06-18', shift:'Avond', teamleider:'Emilia', status:'Overgedragen', overgedragenDoor:'Emilia', overgedragenOp:'18 jun 23:45',
-    lijnen:{
-      'Lijn A': {afwijkingen:[{omschrijving:'Schoonmaak-gerelateerde waste en rework — geen specifieke afwijking gemeld', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:50, reworkKg:41, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}]},
-      'Lijn B': {afwijkingen:[{omschrijving:'Schoonmaak-waste en rework nog van de ochtendploeg — geen specifieke afwijking gemeld', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:16, reworkKg:58, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Routinematig', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}]},
-      'Lijn C': {afwijkingen:[
-        {omschrijving:'Rb kano slechte kwaliteit (beide ploegen, 175 kg), Rb kano met schaafstel (150 kg)', impact:'325 kg rework', oorzaak:'RB kano slechte kwaliteit: af en toe koekjes met beschadigde bovenkant, te licht van gewicht met minder spijs. RB kano met schaafstel: 6 kratten (50 kg) in emmers gezet, rest overgewerkt of afgekeurd.', correctief:'', preventief:'', wasteKg:0, reworkKg:325, stilstandMin:0, drempelOverschreden:false, escalatieniveau:'Aandachtspunt', vervolgactie:'QA', prioriteit:'Midden', toegewezen:'', gemeldOp:'18 jun', dagoverlegId:'va-6'},
-        {omschrijving:'Kaaklift inpak: 2 platen bij sig. uitvoer scheef en vastgelopen', impact:'Buffer vol', oorzaak:'?', correctief:'TD gebeld, platen weggehaald en getest of alles weer werkt.', preventief:'?', wasteKg:0, reworkKg:0, stilstandMin:120, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'TD', prioriteit:'Midden', toegewezen:'', gemeldOp:'18 jun', dagoverlegId:'va-3'},
-        {omschrijving:'Oven leeg-platen stopte met draaien', impact:'15 min tijd verloren bij het wachten', oorzaak:'?', correctief:'TD gebeld, kaak opnieuw opgestart, daarna deed het weer.', preventief:'?', wasteKg:0, reworkKg:0, stilstandMin:15, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'TD', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'},
-        {omschrijving:'Resterende schoonmaak-waste en niet nader gespecificeerde stilstand (beide ploegen) — niet gekoppeld aan een individueel gelogde afwijking', impact:'', oorzaak:'', correctief:'', preventief:'', wasteKg:102, reworkKg:18, stilstandMin:105, drempelOverschreden:true, escalatieniveau:'Aandachtspunt', vervolgactie:'Geen', prioriteit:'Laag', toegewezen:'', gemeldOp:'18 jun'}
-      ]}
-    },
-    veiligheid:[
-      {categorie:'Planning', omschrijving:'Orders op Lijn C zijn af.', impact:'', oorzaak:'', correctief:'', preventief:'', vervolgactie:'Geen', prioriteit:null, escalatieniveau:null, gemeldOp:'18 jun'},
-      {categorie:'Planning', omschrijving:'Order op Lijn A is af.', impact:'', oorzaak:'', correctief:'', preventief:'', vervolgactie:'Geen', prioriteit:null, escalatieniveau:null, gemeldOp:'18 jun'}
-    ],
-    rondeGelopen:false, rondeMomenten:[], rondeReden:'Ronde is niet gelopen omdat ik op Lijn 3 als operator stond (te druk om Sergio de lijn te laten draaien) + pauzes overnemen (een persoon niet gekomen, ontslag genomen; een persoon vrij).',
-    actiesVolgendeShift:'Lijn 3 goed kruimelvrij, Lijn A kruimelvrij — doorgeven aan Jorn om schoonmaak af te maken op zaterdag.',
-    voorbereiding:'Display dozen klaargezet, Lijn B klaargezet voor maandag, Lijn C klaargezet voor maandag, folie klaargezet.', notificaties:[]
-  }]
-};
+// Geschiedenis per afdeling — de meest recente overgedragen shift per afdeling.
+// Wordt gevuld bij Overdracht (handleOverdracht). In productie: ophalen uit SharePoint.
+let GESCHIEDENIS = { Productie: [], Inpak: [] };
+
+
 
 function dagenOpen(gemeldOffset){ return Math.max(0, -gemeldOffset); }
 function escalatieKlasse(dagen){
