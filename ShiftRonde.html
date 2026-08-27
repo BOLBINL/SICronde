@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>WML Production — Shift Rapportage</title>
+<title>BINLBOL — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -134,7 +134,7 @@ tailwind.config = {
 <body class="bg-background text-on-surface">
 
 <div id="demo-banner" class="text-white text-center text-[11px] py-1.5 px-3" style="background:#1C2D4A">
-  <b>WML Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
+  <b>BINBOL Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
   Vul de Flow-URLs in via <b>Configuratie → Verbinding</b>.
 </div>
 
@@ -765,10 +765,12 @@ tailwind.config = {
   <div class="bg-paper rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
     <div class="px-8 pt-8 pb-6 text-center" style="background:#1C2D4A">
       <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center text-xl font-bold font-mono-num" style="background:#B8963A; color:#fff">BI</div>
-      <h1 class="text-white text-xl font-bold">WML Shift Rapportage</h1>
+      <h1 class="text-white text-xl font-bold">BINL Shift Rapportage</h1>
       <p class="text-white/60 text-xs mt-1">Biscuit International — Broek op Langedijk</p>
     </div>
-    <div class="p-8 space-y-4">
+
+    <!-- Inlogformulier -->
+    <div id="login-form-paneel" class="p-8 space-y-4">
       <div class="space-y-1.5">
         <label class="text-metadata-caps text-muted uppercase block">Jouw naam</label>
         <input id="login-naam-input"
@@ -790,10 +792,54 @@ tailwind.config = {
         style="background:#B8963A" id="login-knop">
         Inloggen
       </button>
-      <p class="text-center text-micro-caption text-muted">
-        Naam niet bekend? Neem contact op met de beheerder.<br>
-        Toegang wordt gecontroleerd via de ShiftConfig-lijst.
-      </p>
+      <div class="flex items-center justify-center pt-1">
+        <button onclick="toonVerbindingPaneel()" class="text-micro-caption text-muted flex items-center gap-1 hover:text-secondary transition-colors py-2 px-3">
+          <span class="material-symbols-outlined text-[14px]">settings</span>
+          Verbinding instellen (Flow-URLs)
+        </button>
+      </div>
+    </div>
+
+    <!-- Verbinding-paneel (zichtbaar zonder inloggen) -->
+    <div id="login-verbinding-paneel" class="hidden p-8 space-y-4">
+      <div class="flex items-center gap-2 mb-2">
+        <button onclick="toonLoginForm()" class="text-muted hover:text-ink">
+          <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+        </button>
+        <h2 class="text-label-ui font-bold">Flow-URLs instellen</h2>
+      </div>
+      <p class="text-xs text-muted">Plak hier de URLs van de Power Automate-flows. Opgeslagen in de browser van dit apparaat. Vereist voor inloggen en overdracht.</p>
+
+      <div class="space-y-3">
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 4 — Gebruiker valideren <span class="text-danger">*</span></label>
+          <input id="vb-flow-validate" type="url" placeholder="https://prod-xx.logic.azure.com..."
+            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low"
+            oninput="loginVerbindingPreview()">
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 1 — Shift Overdracht</label>
+          <input id="vb-flow-overdracht" type="url" placeholder="https://prod-xx.logic.azure.com..."
+            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low"
+            oninput="loginVerbindingPreview()">
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 2 — Dagoverleg ophalen</label>
+          <input id="vb-flow-dagoverleg" type="url" placeholder="https://prod-xx.logic.azure.com..."
+            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low">
+        </div>
+        <div class="space-y-1">
+          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 3 — Vorige shift ophalen</label>
+          <input id="vb-flow-vorige" type="url" placeholder="https://prod-xx.logic.azure.com..."
+            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low">
+        </div>
+      </div>
+      <div id="vb-status" class="hidden text-xs rounded-lg px-3 py-2"></div>
+      <button onclick="slaVerbindingOp()"
+        class="w-full py-3 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-90"
+        style="background:#1C2D4A">
+        Opslaan en terug naar inloggen
+      </button>
     </div>
   </div>
 </div>
@@ -893,10 +939,55 @@ let INGELOGD = null;
 function toonLoginOverlay(){
   const el = document.getElementById('login-overlay');
   if(el){ el.style.cssText = ''; el.style.display = 'flex'; }
+  toonLoginForm(); // begin altijd in het login-paneel, niet in verbinding
   setTimeout(function(){
     const input = document.getElementById('login-naam-input');
     if(input) input.focus();
   }, 100);
+}
+function toonLoginForm(){
+  document.getElementById('login-form-paneel').classList.remove('hidden');
+  document.getElementById('login-verbinding-paneel').classList.add('hidden');
+}
+function toonVerbindingPaneel(){
+  document.getElementById('login-form-paneel').classList.add('hidden');
+  const paneel = document.getElementById('login-verbinding-paneel');
+  paneel.classList.remove('hidden');
+  // Vul de velden in vanuit de huidige FLOW_URLS (al geladen uit localStorage)
+  document.getElementById('vb-flow-validate').value   = FLOW_URLS.validateUser  || '';
+  document.getElementById('vb-flow-overdracht').value = FLOW_URLS.overdracht     || '';
+  document.getElementById('vb-flow-dagoverleg').value = FLOW_URLS.getDagoverleg  || '';
+  document.getElementById('vb-flow-vorige').value     = FLOW_URLS.getVorigeShift || '';
+  loginVerbindingPreview();
+}
+function loginVerbindingPreview(){
+  const flow4 = document.getElementById('vb-flow-validate').value.trim();
+  const statusEl = document.getElementById('vb-status');
+  if(flow4){
+    statusEl.className = 'text-xs rounded-lg px-3 py-2 bg-success-pale text-secondary';
+    statusEl.textContent = '✓ Flow 4 ingesteld — inloggen met validatie is mogelijk.';
+    statusEl.classList.remove('hidden');
+  } else {
+    statusEl.className = 'text-xs rounded-lg px-3 py-2 bg-warning-pale text-warning';
+    statusEl.textContent = '⚠ Zonder Flow 4 kun je inloggen in demo-modus (geen naam-validatie).';
+    statusEl.classList.remove('hidden');
+  }
+}
+function slaVerbindingOp(){
+  const nieuw = {
+    validateUser:  document.getElementById('vb-flow-validate').value.trim(),
+    overdracht:    document.getElementById('vb-flow-overdracht').value.trim(),
+    getDagoverleg: document.getElementById('vb-flow-dagoverleg').value.trim(),
+    getVorigeShift:document.getElementById('vb-flow-vorige').value.trim()
+  };
+  // Update de live FLOW_URLS object
+  Object.assign(FLOW_URLS, nieuw);
+  // Opslaan in localStorage (zelfde mechanisme als de Config-pagina)
+  try {
+    localStorage.setItem('wml_flow_urls', JSON.stringify(nieuw));
+  } catch(e){ console.warn('Flow-URLs opslaan mislukt:', e); }
+  toonToast('Flow-URLs opgeslagen.');
+  toonLoginForm();
 }
 function verbergLoginOverlay(){
   const el = document.getElementById('login-overlay');
@@ -1240,29 +1331,54 @@ function switchAfdeling(afdeling){
 // ============ DAGOVERLEG ============
 // Verwerkt SharePoint-items (uit Flow 2) naar het VERVOLGACTIES-formaat
 // dat renderDagoverlegUI() al kent. Zodat we de UI-logica niet hoeven te dupliceren.
+// ── SharePoint veld-helpers ───────────────────────────────────────────────
+// SharePoint Keuze-kolommen geven soms een object {Value:'...'} terug
+// i.p.v. een gewone string. spWaarde() pakt altijd de string eruit.
+function spWaarde(veld){
+  if(veld === null || veld === undefined) return '';
+  if(typeof veld === 'object') return veld.Value || veld.value || '';
+  return String(veld);
+}
+// SharePoint 'Meerdere tekstregels (rich text)' geeft HTML terug.
+// stripHtml() verwijdert alle HTML-tags en decodeert basis HTML-entities.
+function stripHtml(html){
+  if(!html) return '';
+  const s = spWaarde(html);
+  return s
+    .replace(/<[^>]*>/g, ' ')   // tags → spatie
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g,  '&')
+    .replace(/&lt;/g,   '<')
+    .replace(/&gt;/g,   '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g,    ' ')    // meerdere spaties samenvoegen
+    .trim();
+}
+// ─────────────────────────────────────────────────────────────────────────
+
 function spItemNaarVervolgactie(item, idx){
   return {
-    id:          'sp-' + (item.ID || idx),
-    titel:       item.Omschrijving || item.Title || '(geen omschrijving)',
-    afdeling:    item.Afdeling || '',
-    lijn:        item.Lijn || '',
-    vervolgactie: item.Vervolgactie || 'Geen',
-    status:      item.DagoverlegStatus || 'Open',
-    prioriteit:  item.Prioriteit || 'Laag',
-    gemeld:      0,       // dagenteller: SharePoint-items zijn altijd "nieuw" vanuit app-perspectief
-    spId:        item.ID  // bewaren voor straks als we DagoverlegStatus kunnen PATCHEN
+    id:           'sp-' + (item.ID || idx),
+    titel:        stripHtml(item.Omschrijving || item.Title) || '(geen omschrijving)',
+    afdeling:     spWaarde(item.Afdeling),
+    lijn:         spWaarde(item.Lijn),
+    vervolgactie: spWaarde(item.Vervolgactie) || 'Geen',
+    status:       spWaarde(item.DagoverlegStatus) || 'Open',
+    prioriteit:   spWaarde(item.Prioriteit) || 'Laag',
+    gemeld:       0,
+    spId:         item.ID
   };
 }
 function spItemNaarBlokkade(item){
   return {
-    afdeling:   item.Afdeling || '',
-    idx:        null,     // geen lokale index — komt uit SharePoint
-    spId:       item.ID,
-    type:       item.BlokkadeType || '',
-    artikel:    item.Omschrijving || item.Title || '',
-    batchTht:   item.BatchTht || '',
-    locatie:    item.Locatie || '',
-    status:     item.BlokkadeStatus || 'Actief'
+    afdeling:  spWaarde(item.Afdeling),
+    idx:       null,
+    spId:      item.ID,
+    type:      spWaarde(item.BlokkadeType),
+    artikel:   stripHtml(item.Omschrijving || item.Title),
+    batchTht:  item.BatchTht || '',
+    locatie:   item.Locatie  || '',
+    status:    spWaarde(item.BlokkadeStatus) || 'Actief'
   };
 }
 
@@ -1692,9 +1808,9 @@ function bouwShiftDetailHtml(s){
 // Converteert een SharePoint ShiftRapporten-item + Afwijkingen-array naar het interne
 // shift-snapshot-formaat dat bouwShiftDetailHtml() verwacht.
 function spResponseNaarShiftSnapshot(spShift, spAfwijkingen){
-  // Groepeer afwijkingen per lijn voor de lijnen-structuur
   const lijnen = {};
-  CONFIG.productielijnen[spShift.Afdeling] && CONFIG.productielijnen[spShift.Afdeling].forEach(function(l){
+  const afdeling = spWaarde(spShift.Afdeling);
+  CONFIG.productielijnen[afdeling] && CONFIG.productielijnen[afdeling].forEach(function(l){
     lijnen[l] = {afwijkingen:[], schoonmaakStatus:null};
   });
 
@@ -1703,77 +1819,87 @@ function spResponseNaarShiftSnapshot(spShift, spAfwijkingen){
   const eWegingen  = [];
 
   (spAfwijkingen||[]).forEach(function(item){
-    const cat = item.Categorie || '';
+    const cat = spWaarde(item.Categorie);
     if(cat === 'Blokkade'){
       blokkades.push({
-        type:    item.BlokkadeType||'', artikel:item.Omschrijving||'',
-        batchTht:item.BatchTht||'',    hoeveelheid:item.Hoeveelheid||'',
-        locatie: item.Locatie||'',     status:item.BlokkadeStatus||'Actief'
+        type:        spWaarde(item.BlokkadeType),
+        artikel:     stripHtml(item.Omschrijving || item.Title),
+        batchTht:    item.BatchTht   || '',
+        hoeveelheid: item.Hoeveelheid|| '',
+        locatie:     item.Locatie    || '',
+        status:      spWaarde(item.BlokkadeStatus) || 'Actief'
       });
     } else if(cat === 'EWegingUitstoot'){
       eWegingen.push({
-        lijn:item.Lijn||'', artikelBatch:item.Omschrijving||'',
-        tijdvak:item.Tijdvak||'', soortUitstoot:item.SoortUitstoot||'',
-        hoeveelheid:item.HoeveelheidUitstoot||0, actie:item.Correctief||''
+        lijn:          spWaarde(item.Lijn),
+        artikelBatch:  stripHtml(item.Omschrijving || item.Title),
+        tijdvak:       item.Tijdvak || '',
+        soortUitstoot: spWaarde(item.SoortUitstoot),
+        hoeveelheid:   item.HoeveelheidUitstoot || 0,
+        actie:         stripHtml(item.Correctief)
       });
     } else if(cat === 'Planning'){
       veiligheid.push({
-        categorie:'Planning', omschrijving:item.Omschrijving||'',
-        vervolgactie:item.Vervolgactie||'', escalatieniveau:null, prioriteit:null
+        categorie:     'Planning',
+        omschrijving:  stripHtml(item.Omschrijving || item.Title),
+        vervolgactie:  spWaarde(item.Vervolgactie),
+        escalatieniveau: null, prioriteit: null
       });
     } else if(['Veiligheid','Voedselveiligheid','LOTOTO / Werkvergunning'].indexOf(cat)!==-1){
       veiligheid.push({
-        categorie:cat, omschrijving:item.Omschrijving||'',
-        impact:item.EffectImpact||'', oorzaak:item.Oorzaak||'',
-        correctief:item.Correctief||'', preventief:item.Preventief||'',
-        vervolgactie:item.Vervolgactie||'', prioriteit:item.Prioriteit||'',
-        escalatieniveau:item.EscalatieNiveau||'Routinematig',
-        vreemdVoorwerp:!!item.VreemdVoorwerp
+        categorie:      cat,
+        omschrijving:   stripHtml(item.Omschrijving || item.Title),
+        impact:         stripHtml(item.EffectImpact),
+        oorzaak:        stripHtml(item.Oorzaak),
+        correctief:     stripHtml(item.Correctief),
+        preventief:     stripHtml(item.Preventief),
+        vervolgactie:   spWaarde(item.Vervolgactie),
+        prioriteit:     spWaarde(item.Prioriteit),
+        escalatieniveau:spWaarde(item.EscalatieNiveau) || 'Routinematig',
+        vreemdVoorwerp: !!item.VreemdVoorwerp
       });
     } else {
-      // Productie-afwijking — voeg toe aan de juiste lijn
-      const lijn = item.Lijn || '';
+      const lijn = spWaarde(item.Lijn);
       if(!lijnen[lijn]) lijnen[lijn] = {afwijkingen:[], schoonmaakStatus:null};
       lijnen[lijn].afwijkingen.push({
-        omschrijving:  item.Omschrijving||'',
-        impact:        item.EffectImpact||'',
-        oorzaak:       item.Oorzaak||'',
-        correctief:    item.Correctief||'',
-        preventief:    item.Preventief||'',
-        wasteKg:       item.WasteKg||0,
-        reworkKg:      item.ReworkKg||0,
-        stilstandMin:  item.StilstandMin||0,
-        extraWerkMin:  item.ExtraWerkMin||0,
-        escalatieniveau: item.EscalatieNiveau||'Routinematig',
-        vervolgactie:  item.Vervolgactie||'',
-        prioriteit:    item.Prioriteit||'Laag',
+        omschrijving:    stripHtml(item.Omschrijving || item.Title),
+        impact:          stripHtml(item.EffectImpact),
+        oorzaak:         stripHtml(item.Oorzaak),
+        correctief:      stripHtml(item.Correctief),
+        preventief:      stripHtml(item.Preventief),
+        wasteKg:         item.WasteKg       || 0,
+        reworkKg:        item.ReworkKg      || 0,
+        stilstandMin:    item.StilstandMin  || 0,
+        extraWerkMin:    item.ExtraWerkMin  || 0,
+        escalatieniveau: spWaarde(item.EscalatieNiveau) || 'Routinematig',
+        vervolgactie:    spWaarde(item.Vervolgactie),
+        prioriteit:      spWaarde(item.Prioriteit) || 'Laag',
         drempelOverschreden: !!item.DrempelOverschreden
       });
     }
   });
 
-  // Ronde-momenten: waren opgeslagen als puntkomma-gescheiden string (join van de array bij overdracht)
   const rondeMomenten = (spShift.RondeMomenten||'').split(';').filter(Boolean);
 
   return {
-    datum:                  (spShift.Datum||'').split('T')[0],
-    shift:                  spShift.Shift||'',
-    teamleider:             spShift.Teamleider||'',
-    status:                 spShift.Status||'',
-    overgedragenDoor:       spShift.OvergedragenDoor||'',
-    overgedragenOp:         spShift.OvergedragenOp||'',
-    gembaAfgestemd:         !!spShift.GembaAfgestemd,
-    personeleBezetting:     spShift.PersoneleBezetting||'',
-    algemenePuntenDagoverleg: spShift.AlgemenePuntenDagoverleg||'',
-    actiesVolgendeShift:    spShift.ActiesVolgendeShift||'',
-    voorbereiding:          spShift.Voorbereiding||'',
-    rondeMomenten:          rondeMomenten,
-    rondeReden:             spShift.RondeReden||'',
-    lijnen:                 lijnen,
-    veiligheid:             veiligheid,
-    blokkades:              blokkades,
-    eWegingen:              eWegingen,
-    notificaties:           []
+    datum:                   (spShift.Datum||'').split('T')[0],
+    shift:                   spWaarde(spShift.Shift),
+    teamleider:              spWaarde(spShift.Teamleider) || spShift.Teamleider_x0020_DisplayName || '',
+    status:                  spWaarde(spShift.Status),
+    overgedragenDoor:        spWaarde(spShift.OvergedragenDoor) || spShift.OvergedragenDoor_x0020_DisplayName || '',
+    overgedragenOp:          spShift.OvergedragenOp || '',
+    gembaAfgestemd:          !!spShift.GembaAfgestemd,
+    personeleBezetting:      stripHtml(spShift.PersoneleBezetting),
+    algemenePuntenDagoverleg:stripHtml(spShift.AlgemenePuntenDagoverleg),
+    actiesVolgendeShift:     stripHtml(spShift.ActiesVolgendeShift),
+    voorbereiding:           stripHtml(spShift.Voorbereiding),
+    rondeMomenten:           rondeMomenten,
+    rondeReden:              stripHtml(spShift.RondeReden),
+    lijnen:                  lijnen,
+    veiligheid:              veiligheid,
+    blokkades:               blokkades,
+    eWegingen:               eWegingen,
+    notificaties:            []
   };
 }
 
