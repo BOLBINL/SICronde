@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>BINL BOL — Shift Rapportage</title>
+<title>BOL Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -462,25 +462,25 @@ tailwind.config = {
       <div id="nf-kpi-wrap" class="space-y-2">
         <label class="text-metadata-caps text-muted uppercase block">KPI Impact Metrics</label>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="bg-surface-container p-2.5 rounded border border-border">
-            <span class="text-micro-caption text-muted block mb-1">Waste (KG)</span>
-            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-waste" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-waste-reden"></select>
+          <div class="bg-paper p-2.5 rounded-lg border-2 border-border hover:border-secondary/50 transition-colors">
+            <span class="text-micro-caption text-muted block mb-1.5">Waste (KG)</span>
+            <input class="w-full bg-white border border-border rounded px-2 py-1.5 font-mono-num text-primary focus:ring-1 focus:ring-secondary focus:border-secondary outline-none text-sm" id="nf-waste" type="number" placeholder="0" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-white border border-border rounded px-1.5 py-1 text-xs text-muted focus:ring-1 focus:ring-secondary outline-none mt-2" id="nf-waste-reden"></select>
           </div>
-          <div class="bg-surface-container p-2.5 rounded border border-border">
-            <span class="text-micro-caption text-muted block mb-1">Rework (KG)</span>
-            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-rework" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-rework-reden"></select>
+          <div class="bg-paper p-2.5 rounded-lg border-2 border-border hover:border-secondary/50 transition-colors">
+            <span class="text-micro-caption text-muted block mb-1.5">Rework (KG)</span>
+            <input class="w-full bg-white border border-border rounded px-2 py-1.5 font-mono-num text-primary focus:ring-1 focus:ring-secondary focus:border-secondary outline-none text-sm" id="nf-rework" type="number" placeholder="0" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-white border border-border rounded px-1.5 py-1 text-xs text-muted focus:ring-1 focus:ring-secondary outline-none mt-2" id="nf-rework-reden"></select>
           </div>
-          <div class="bg-surface-container p-2.5 rounded border border-border">
-            <span class="text-micro-caption text-muted block mb-1">Stilstand (min)</span>
-            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-stilstand" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-stilstand-reden"></select>
+          <div class="bg-paper p-2.5 rounded-lg border-2 border-border hover:border-secondary/50 transition-colors">
+            <span class="text-micro-caption text-muted block mb-1.5">Stilstand (min)</span>
+            <input class="w-full bg-white border border-border rounded px-2 py-1.5 font-mono-num text-primary focus:ring-1 focus:ring-secondary focus:border-secondary outline-none text-sm" id="nf-stilstand" type="number" placeholder="0" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-white border border-border rounded px-1.5 py-1 text-xs text-muted focus:ring-1 focus:ring-secondary outline-none mt-2" id="nf-stilstand-reden"></select>
           </div>
-          <div class="bg-surface-container p-2.5 rounded border border-border">
-            <span class="text-micro-caption text-muted block mb-1">Extra werk (min)</span>
-            <input class="w-full bg-transparent border-none p-0 font-mono-num text-primary focus:ring-0 text-sm" id="nf-extrawerk" type="number" oninput="updateEscalatiePreview()">
-            <select class="w-full bg-transparent border-none p-0 text-xs text-muted focus:ring-0 mt-1.5" id="nf-extrawerk-reden"></select>
+          <div class="bg-paper p-2.5 rounded-lg border-2 border-border hover:border-secondary/50 transition-colors">
+            <span class="text-micro-caption text-muted block mb-1.5">Extra werk (min)</span>
+            <input class="w-full bg-white border border-border rounded px-2 py-1.5 font-mono-num text-primary focus:ring-1 focus:ring-secondary focus:border-secondary outline-none text-sm" id="nf-extrawerk" type="number" placeholder="0" oninput="updateEscalatiePreview()">
+            <select class="w-full bg-white border border-border rounded px-1.5 py-1 text-xs text-muted focus:ring-1 focus:ring-secondary outline-none mt-2" id="nf-extrawerk-reden"></select>
           </div>
         </div>
       </div>
@@ -882,8 +882,8 @@ const CONFIG = {
 // Kopieer de HTTP POST URL van elke flow via: Trigger → "URL kopiëren".
 // Nooit openbaar delen — de sig=-parameter is een geheim.
 // ═══════════════════════════════════════════════════════════════════════════
-const IT_BOOTSTRAP_URL   = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — WML Bootstrap Config Ophalen
-const IT_VALIDATE_URL    = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — WML Gebruiker Valideren
+const IT_BOOTSTRAP_URL   = '';  // Flow 0 — WML Bootstrap Config Ophalen
+const IT_VALIDATE_URL    = '';  // Flow 4 — WML Gebruiker Valideren
 // ═══════════════════════════════════════════════════════════════════════════
 
 const FLOW_URLS = {
