@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>BOL Production — Shift Rapportage</title>
+<title>BIN BOL Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -3002,7 +3002,9 @@ function bouwSharePointPayload(afdeling){
         escalatieniveau:v.escalatieniveau, vervolgactie:v.vervolgactie,
         prioriteit:v.prioriteit, gemeldOp:v.gemeldOp,
         vreemdVoorwerp: nb(v.vreemdVoorwerp),
-        heeftFoto:      nb(v.foto)
+        heeftFoto:      nb(v.foto),
+        fotoData:       v.foto  || null,   // base64 — Flow 1 maakt hiervan een SP-bijlage
+        fotoNaam:       'foto_veiligheid_' + (v.gemeldOp||'').replace(':','-') + '.jpg'
       }));
     }
   });
@@ -3019,6 +3021,8 @@ function bouwSharePointPayload(afdeling){
       reden:         nn(b.reden),
       status:        nn(b.status),
       heeftFoto:     nb(b.foto),
+      fotoData:      b.foto || null,       // base64 — Flow 1 maakt hiervan een SP-bijlage
+      fotoNaam:      'blokkade_' + nn(b.batchTht).replace(/[^a-zA-Z0-9]/g,'_') + '.jpg',
       gemeldDoor:    nn(b.gemeldDoor),
       gemeldOp:      nn(b.gemeldOp),
       vrijgegevenDoor: nn(b.vrijgegevenDoor),
@@ -3055,11 +3059,19 @@ async function logSharePointPayload(afdeling, actie){
   const payload = bouwSharePointPayload(afdeling);
 
   // Altijd naar console voor debugging
+  // Console-log met ingekorte fotoData (base64 is te lang voor leesbare output)
+  function kortFotoIn(arr){
+    return arr.map(function(item){
+      const k = Object.assign({}, item);
+      if(k.fotoData) k.fotoData = k.fotoData.substring(0,40) + '... [base64 ' + Math.round(k.fotoData.length/1024) + 'KB]';
+      return k;
+    });
+  }
   console.group('Payload — ' + afdeling + ' (' + actie + ')');
   console.log('ShiftRapporten:', payload.shiftRapport);
-  console.log('Afwijkingen (' + payload.afwijkingen.length + '):', payload.afwijkingen);
+  console.log('Afwijkingen (' + payload.afwijkingen.length + '):', kortFotoIn(payload.afwijkingen));
   console.log('Mededelingen (' + payload.mededelingen.length + '):', payload.mededelingen);
-  console.log('Blokkades (' + payload.blokkades.length + '):', payload.blokkades);
+  console.log('Blokkades (' + payload.blokkades.length + '):', kortFotoIn(payload.blokkades));
   console.log('E-wegingen (' + payload.eWegingen.length + '):', payload.eWegingen);
   console.groupEnd();
 
