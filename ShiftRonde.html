@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>BINLBOL — Shift Rapportage</title>
+<title>WML Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -134,7 +134,7 @@ tailwind.config = {
 <body class="bg-background text-on-surface">
 
 <div id="demo-banner" class="text-white text-center text-[11px] py-1.5 px-3" style="background:#1C2D4A">
-  <b>BINBOL Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
+  <b>WML Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
   Vul de Flow-URLs in via <b>Configuratie → Verbinding</b>.
 </div>
 
@@ -765,80 +765,44 @@ tailwind.config = {
   <div class="bg-paper rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
     <div class="px-8 pt-8 pb-6 text-center" style="background:#1C2D4A">
       <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center text-xl font-bold font-mono-num" style="background:#B8963A; color:#fff">BI</div>
-      <h1 class="text-white text-xl font-bold">BINL Shift Rapportage</h1>
+      <h1 class="text-white text-xl font-bold">WML Shift Rapportage</h1>
       <p class="text-white/60 text-xs mt-1">Biscuit International — Broek op Langedijk</p>
     </div>
-
-    <!-- Inlogformulier -->
     <div id="login-form-paneel" class="p-8 space-y-4">
+      <div id="login-code-sectie" class="space-y-1.5">
+        <label class="text-metadata-caps text-muted uppercase block">Bedrijfscode</label>
+        <input id="login-code-input"
+          class="w-full border-2 border-border rounded-xl px-4 py-3 text-sm tracking-widest font-mono-num focus:border-secondary focus:ring-0 outline-none transition-colors bg-surface-container-low"
+          type="password" placeholder="••••••"
+          autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') loginVersturen()">
+        <label class="flex items-center gap-2 cursor-pointer select-none mt-1">
+          <input type="checkbox" id="login-code-onthouden" class="w-4 h-4 accent-secondary rounded"
+            onchange="handleCodeOnthoudenToggle(this.checked)">
+          <span class="text-xs text-muted">Bedrijfscode onthouden op dit apparaat</span>
+        </label>
+      </div>
       <div class="space-y-1.5">
         <label class="text-metadata-caps text-muted uppercase block">Jouw naam</label>
         <input id="login-naam-input"
           class="w-full border-2 border-border rounded-xl px-4 py-3 text-sm focus:border-secondary focus:ring-0 outline-none transition-colors bg-surface-container-low"
           type="text" placeholder="Voer je naam in..."
-          autocomplete="name" autocorrect="off" spellcheck="false"
+          autocomplete="off" autocorrect="off" spellcheck="false"
           onkeydown="if(event.key==='Enter') loginVersturen()">
+        <p class="text-micro-caption text-muted">Naam wordt nooit onthouden — vul elke keer opnieuw in.</p>
       </div>
       <div id="login-fout" class="hidden bg-danger-pale border border-danger text-danger rounded-xl px-4 py-3 text-sm flex items-start gap-2">
         <span class="material-symbols-outlined text-[18px] shrink-0 mt-0.5">person_off</span>
-        <span id="login-fout-tekst">Naam niet gevonden.</span>
+        <span id="login-fout-tekst">Onjuiste bedrijfscode of naam niet gevonden.</span>
       </div>
       <div id="login-laden" class="hidden text-center py-2">
         <span class="material-symbols-outlined animate-spin text-secondary">autorenew</span>
-        <p class="text-sm text-muted mt-1">Naam controleren...</p>
+        <p class="text-sm text-muted mt-1">Controleren...</p>
       </div>
       <button onclick="loginVersturen()"
         class="w-full py-3 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-90 active:opacity-75"
         style="background:#B8963A" id="login-knop">
         Inloggen
-      </button>
-      <div class="flex items-center justify-center pt-1">
-        <button onclick="toonVerbindingPaneel()" class="text-micro-caption text-muted flex items-center gap-1 hover:text-secondary transition-colors py-2 px-3">
-          <span class="material-symbols-outlined text-[14px]">settings</span>
-          Verbinding instellen (Flow-URLs)
-        </button>
-      </div>
-    </div>
-
-    <!-- Verbinding-paneel (zichtbaar zonder inloggen) -->
-    <div id="login-verbinding-paneel" class="hidden p-8 space-y-4">
-      <div class="flex items-center gap-2 mb-2">
-        <button onclick="toonLoginForm()" class="text-muted hover:text-ink">
-          <span class="material-symbols-outlined text-[20px]">arrow_back</span>
-        </button>
-        <h2 class="text-label-ui font-bold">Flow-URLs instellen</h2>
-      </div>
-      <p class="text-xs text-muted">Plak hier de URLs van de Power Automate-flows. Opgeslagen in de browser van dit apparaat. Vereist voor inloggen en overdracht.</p>
-
-      <div class="space-y-3">
-        <div class="space-y-1">
-          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 4 — Gebruiker valideren <span class="text-danger">*</span></label>
-          <input id="vb-flow-validate" type="url" placeholder="https://prod-xx.logic.azure.com..."
-            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low"
-            oninput="loginVerbindingPreview()">
-        </div>
-        <div class="space-y-1">
-          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 1 — Shift Overdracht</label>
-          <input id="vb-flow-overdracht" type="url" placeholder="https://prod-xx.logic.azure.com..."
-            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low"
-            oninput="loginVerbindingPreview()">
-        </div>
-        <div class="space-y-1">
-          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 2 — Dagoverleg ophalen</label>
-          <input id="vb-flow-dagoverleg" type="url" placeholder="https://prod-xx.logic.azure.com..."
-            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low">
-        </div>
-        <div class="space-y-1">
-          <label class="text-metadata-caps text-muted uppercase text-[10px]">Flow 3 — Vorige shift ophalen</label>
-          <input id="vb-flow-vorige" type="url" placeholder="https://prod-xx.logic.azure.com..."
-            class="w-full border border-border rounded-lg px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary outline-none bg-surface-container-low">
-        </div>
-      </div>
-      <div id="vb-status" class="hidden text-xs rounded-lg px-3 py-2"></div>
-      <button onclick="slaVerbindingOp()"
-        class="w-full py-3 rounded-xl font-bold text-sm text-white transition-opacity hover:opacity-90"
-        style="background:#1C2D4A">
-        Opslaan en terug naar inloggen
       </button>
     </div>
   </div>
@@ -865,6 +829,10 @@ tailwind.config = {
 
 <script>
 const CONFIG = {
+  // Bedrijfscode — wordt overschreven via bootstrap vanuit ShiftConfig
+  // (ConfigType = Algemeen, Titel = BedrijfsCode, WaardeTekst = de code)
+  // Leeg = code-check uitgeschakeld (demo-modus)
+  bedrijfsCode: '',
   productielijnen: { Productie: ['Deegmakerij','Lijn A','Lijn B','Lijn C'], Inpak: ['Lijn A','Lijn B','Lijn C'] },
   vervolgactieRoutes: [
     {code:'TD', naam:'Technische Dienst', kleur:'#1D4ED8'},
@@ -909,20 +877,187 @@ const CONFIG = {
 // ============ POWER AUTOMATE KOPPELING ============
 // Architectuur: GitHub Pages → Power Automate HTTP-trigger → SharePoint
 // Voordelen: geen CORS, geen Azure AD-app nodig, werkt van elk domein.
-// Vul de FLOW_URLS na het aanmaken en publiceren van de flows.
-// Elke URL krijg je van Power Automate via: Trigger → "URL kopiëren".
+// ═══════════════════════════════════════════════════════════════════════════
+// DOOR IT IN TE VULLEN — vul na het aanmaken van de flows in Power Automate.
+// Kopieer de HTTP POST URL van elke flow via: Trigger → "URL kopiëren".
+// Nooit openbaar delen — de sig=-parameter is een geheim.
+// ═══════════════════════════════════════════════════════════════════════════
+const IT_BOOTSTRAP_URL   = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — WML Bootstrap Config Ophalen
+const IT_VALIDATE_URL    = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — WML Gebruiker Valideren
+// ═══════════════════════════════════════════════════════════════════════════
 
 const FLOW_URLS = {
-  // Flow 1: ontvangt de volledige shift-payload bij Overdracht
-  overdracht: '',
-  // Flow 2: haalt open dagoverleg-items op uit SharePoint
-  getDagoverleg: '',
-  // Flow 3: haalt de meest recente overgedragen shift op
-  getVorigeShift: '',
-  // Flow 4: valideert een naam tegen de ShiftConfig Gebruikers-lijst
-  // Geeft {gevonden, naam, rol, afdeling} terug — of {gevonden: false}
-  validateUser: ''
+  bootstrap:       IT_BOOTSTRAP_URL,   // hardcoded
+  validateUser:    IT_VALIDATE_URL,    // hardcoded
+  // Onderstaande worden automatisch geladen via de bootstrap-flow uit ShiftConfig
+  overdracht:      '',
+  getDagoverleg:   '',
+  getVorigeShift:  '',
+  configBijwerken: ''
 };
+
+// ── BOOTSTRAP: alle config + flow-URLs ophalen uit ShiftConfig ────────────
+// Wordt aangeroepen bij het openen van de app (vóór het loginscherm) en
+// bij elke refresh. Vervangt de handmatige Flow-URL invoer voor alles
+// behalve de bootstrap-URL zelf.
+async function laadConfigViaBootstrap(){
+  if(!FLOW_URLS.bootstrap){
+    console.info('Bootstrap-URL nog niet ingesteld — app gebruikt lokale standaard-config.');
+    return false;
+  }
+  try {
+    const resp = await fetch(FLOW_URLS.bootstrap, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({})
+    });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const rijen = data.rijen || [];
+
+    // Reset de CONFIG-arrays die vanuit ShiftConfig worden gevuld
+    // (lijnen worden opnieuw opgebouwd — anderen worden aangevuld)
+    const nieuweLijnen = { Productie: [], Inpak: [] };
+    const nieuweRoutes   = [];
+    const nieuweSchoon   = [];
+    const nieuweKpiReden = { waste:[], rework:[], stilstand:[], extrawerk:[] };
+    let   vorigeRoutes   = false;
+    let   vorigeSchoon   = false;
+
+    rijen.forEach(function(rij){
+      const type  = spWaarde(rij.ConfigType);
+      const titel = rij.Title || rij.Titel || '';
+      const label = rij.LeesbareName || rij.Leesbarenaam || rij.Label || titel;
+      const num1  = rij.WaardeNumeriek1 != null ? Number(rij.WaardeNumeriek1) : null;
+      const num2  = rij.WaardeNumeriek2 != null ? Number(rij.WaardeNumeriek2) : null;
+      const tekst = rij.WaardeTekst || '';
+      const kleur = rij.Kleur || '';
+      const volgorde = rij.Volgorde != null ? Number(rij.Volgorde) : 99;
+      const afdeling = spWaarde(rij.Afdeling);
+
+      if(type === 'FlowURL'){
+        const urlMap = {
+          'FlowURL_Overdracht':          'overdracht',
+          'FlowURL_Dagoverleg':          'getDagoverleg',
+          'FlowURL_VorigeShift':         'getVorigeShift',
+          'FlowURL_ValideerGebruiker':   'validateUser',
+          'FlowURL_ConfigBijwerken':     'configBijwerken',
+          'FlowURL_Bootstrap':           'bootstrap'
+        };
+        if(urlMap[titel] && tekst) FLOW_URLS[urlMap[titel]] = tekst;
+      }
+      else if(type === 'Productielijn'){
+        if(afdeling === 'Productie' || afdeling === 'Beide')
+          nieuweLijnen.Productie.push({volgorde, label});
+        if(afdeling === 'Inpak' || afdeling === 'Beide')
+          nieuweLijnen.Inpak.push({volgorde, label});
+      }
+      else if(type === 'VervolgactieRoute'){
+        vorigeRoutes = true;
+        nieuweRoutes.push({volgorde, code:titel, naam:label, kleur:kleur||'#6B7280'});
+      }
+      else if(type === 'Drempelwaarde'){
+        if(titel==='WasteKg'     && num1!=null) CONFIG.drempelwaarden.wasteKg     = num1;
+        if(titel==='StilstandMin' && num1!=null) CONFIG.drempelwaarden.stilstandMin = num1;
+        if(titel==='ExtraWerkMin' && num1!=null) CONFIG.drempelwaarden.extraWerkMin = num1;
+      }
+      else if(type === 'NotificatieRouting'){
+        if(tekst) CONFIG.notificatieRouting[titel] = tekst;
+      }
+      else if(type === 'SchoonmaakStatus'){
+        vorigeSchoon = true;
+        nieuweSchoon.push({volgorde, code:titel, label:label, kleur:kleur||'#6B7280'});
+      }
+      else if(type === 'kpiReden'){
+        const kpi = tekst; // WaardeTekst = welke KPI (waste/rework/stilstand/extrawerk)
+        if(nieuweKpiReden[kpi]) nieuweKpiReden[kpi].push({volgorde, label:label});
+      }
+      else if(type === 'Algemeen'){
+        if(titel==='RondeVereistAantal' && num1!=null) CONFIG.rondeVereistAantal = num1;
+        if(titel==='BedrijfsCode' && tekst) CONFIG.bedrijfsCode = tekst;
+      }
+    });
+
+    // Productielijnen toepassen (gesorteerd op volgorde)
+    ['Productie','Inpak'].forEach(function(afd){
+      if(nieuweLijnen[afd].length > 0){
+        CONFIG.productielijnen[afd] = nieuweLijnen[afd]
+          .sort(function(a,b){return a.volgorde - b.volgorde;})
+          .map(function(x){return x.label;});
+      }
+    });
+    // Routes toepassen
+    if(vorigeRoutes && nieuweRoutes.length > 0){
+      CONFIG.vervolgactieRoutes = nieuweRoutes
+        .sort(function(a,b){return a.volgorde - b.volgorde;})
+        .map(function(x){return {code:x.code, naam:x.naam, kleur:x.kleur};});
+    }
+    // Schoonmaak-statussen toepassen
+    if(vorigeSchoon && nieuweSchoon.length > 0){
+      CONFIG.schoonmaakStatussen = nieuweSchoon
+        .sort(function(a,b){return a.volgorde - b.volgorde;})
+        .map(function(x){return {code:x.code, label:x.label, kleur:x.kleur};});
+    }
+    // KPI-redenen toepassen (alleen als er items zijn)
+    ['waste','rework','stilstand','extrawerk'].forEach(function(kpi){
+      if(nieuweKpiReden[kpi].length > 0){
+        const gesorteerd = nieuweKpiReden[kpi]
+          .sort(function(a,b){return a.volgorde - b.volgorde;})
+          .map(function(x){return x.label;});
+        // Zorg altijd dat de lege placeholder bovenaan staat
+        if(!gesorteerd[0].startsWith('—')) gesorteerd.unshift('— geen reden —');
+        CONFIG.kpiRedenen[kpi] = gesorteerd;
+      }
+    });
+
+    // Opslaan in localStorage als cache
+    try {
+      localStorage.setItem('wml_config_cache', JSON.stringify({
+        flowUrls: Object.assign({}, FLOW_URLS),
+        ts: new Date().toISOString()
+      }));
+    } catch(e){}
+
+    console.info('Bootstrap geladen: ' + rijen.length + ' ShiftConfig-rijen verwerkt.');
+    return true;
+  } catch(e){
+    console.warn('Bootstrap niet bereikbaar — gebruik lokale standaard-config:', e.message);
+    // Probeer uit de cache te lezen
+    try {
+      const cache = JSON.parse(localStorage.getItem('wml_config_cache') || '{}');
+      if(cache.flowUrls) Object.assign(FLOW_URLS, cache.flowUrls);
+      console.info('Flow-URLs hersteld uit cache.');
+    } catch(ce){}
+    return false;
+  }
+}
+
+// ── CONFIG WRITE-BACK: wijziging vanuit app opslaan in SharePoint ─────────
+// Stuurt een PATCH naar de Config Bijwerken-flow.
+// actie = 'update' (toekomst: 'create' voor nieuwe rijen)
+async function slaConfigItemOp(titel, waarden){
+  if(!FLOW_URLS.configBijwerken){
+    console.warn('slaConfigItemOp: Flow 5 URL niet ingesteld — wijziging alleen lokaal.');
+    return false;
+  }
+  try {
+    const resp = await fetch(FLOW_URLS.configBijwerken, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ actie: 'update', titel: titel, waarden: waarden })
+    });
+    const data = resp.ok ? await resp.json() : null;
+    if(data && data.gelukt){
+      console.info('Config bijgewerkt in SharePoint:', titel, waarden);
+      return true;
+    }
+    throw new Error(data ? data.fout : 'HTTP ' + resp.status);
+  } catch(e){
+    console.warn('Config bijwerken mislukt:', e.message);
+    toonToast('⚠ Lokaal gewijzigd — sync naar SharePoint mislukt: ' + e.message);
+    return false;
+  }
+}
 
 let INGELOGD = null;
 
@@ -939,110 +1074,92 @@ let INGELOGD = null;
 function toonLoginOverlay(){
   const el = document.getElementById('login-overlay');
   if(el){ el.style.cssText = ''; el.style.display = 'flex'; }
-  toonLoginForm(); // begin altijd in het login-paneel, niet in verbinding
+  // Bedrijfscode herstellen als onthouden (alleen de code, nooit de naam)
+  const onthouden   = localStorage.getItem('wml_code_onthouden') === '1';
+  const bewaardCode = localStorage.getItem('wml_bedrijfscode') || '';
+  const codeInput   = document.getElementById('login-code-input');
+  const codeCheck   = document.getElementById('login-code-onthouden');
+  const naamInput   = document.getElementById('login-naam-input');
+  if(codeInput && onthouden) codeInput.value = bewaardCode;
+  if(codeCheck) codeCheck.checked = onthouden;
+  // Naam altijd leeg — nooit voorinvullen
+  if(naamInput) naamInput.value = '';
   setTimeout(function(){
-    const input = document.getElementById('login-naam-input');
-    if(input) input.focus();
-  }, 100);
+    const focus = (onthouden && bewaardCode) ? naamInput : codeInput;
+    if(focus) focus.focus();
+  }, 120);
 }
-function toonLoginForm(){
-  document.getElementById('login-form-paneel').classList.remove('hidden');
-  document.getElementById('login-verbinding-paneel').classList.add('hidden');
-}
-function toonVerbindingPaneel(){
-  document.getElementById('login-form-paneel').classList.add('hidden');
-  const paneel = document.getElementById('login-verbinding-paneel');
-  paneel.classList.remove('hidden');
-  // Vul de velden in vanuit de huidige FLOW_URLS (al geladen uit localStorage)
-  document.getElementById('vb-flow-validate').value   = FLOW_URLS.validateUser  || '';
-  document.getElementById('vb-flow-overdracht').value = FLOW_URLS.overdracht     || '';
-  document.getElementById('vb-flow-dagoverleg').value = FLOW_URLS.getDagoverleg  || '';
-  document.getElementById('vb-flow-vorige').value     = FLOW_URLS.getVorigeShift || '';
-  loginVerbindingPreview();
-}
-function loginVerbindingPreview(){
-  const flow4 = document.getElementById('vb-flow-validate').value.trim();
-  const statusEl = document.getElementById('vb-status');
-  if(flow4){
-    statusEl.className = 'text-xs rounded-lg px-3 py-2 bg-success-pale text-secondary';
-    statusEl.textContent = '✓ Flow 4 ingesteld — inloggen met validatie is mogelijk.';
-    statusEl.classList.remove('hidden');
+function toonLoginForm(){} // stub — verbinding-paneel is verwijderd
+
+function handleCodeOnthoudenToggle(checked){
+  if(checked){
+    const code = (document.getElementById('login-code-input')||{}).value || '';
+    localStorage.setItem('wml_code_onthouden', '1');
+    if(code) localStorage.setItem('wml_bedrijfscode', code);
   } else {
-    statusEl.className = 'text-xs rounded-lg px-3 py-2 bg-warning-pale text-warning';
-    statusEl.textContent = '⚠ Zonder Flow 4 kun je inloggen in demo-modus (geen naam-validatie).';
-    statusEl.classList.remove('hidden');
+    localStorage.removeItem('wml_code_onthouden');
+    localStorage.removeItem('wml_bedrijfscode');
   }
-}
-function slaVerbindingOp(){
-  const nieuw = {
-    validateUser:  document.getElementById('vb-flow-validate').value.trim(),
-    overdracht:    document.getElementById('vb-flow-overdracht').value.trim(),
-    getDagoverleg: document.getElementById('vb-flow-dagoverleg').value.trim(),
-    getVorigeShift:document.getElementById('vb-flow-vorige').value.trim()
-  };
-  // Update de live FLOW_URLS object
-  Object.assign(FLOW_URLS, nieuw);
-  // Opslaan in localStorage (zelfde mechanisme als de Config-pagina)
-  try {
-    localStorage.setItem('wml_flow_urls', JSON.stringify(nieuw));
-  } catch(e){ console.warn('Flow-URLs opslaan mislukt:', e); }
-  toonToast('Flow-URLs opgeslagen.');
-  toonLoginForm();
-}
-function verbergLoginOverlay(){
-  const el = document.getElementById('login-overlay');
-  if(el) el.style.display = 'none';
 }
 
 async function loginVersturen(){
-  const input = document.getElementById('login-naam-input');
-  const naam = (input ? input.value : '').trim();
-  if(!naam){
-    toonLoginFout('Vul je naam in om in te loggen.');
-    return;
-  }
+  const codeInput = document.getElementById('login-code-input');
+  const naamInput = document.getElementById('login-naam-input');
+  const code = (codeInput ? codeInput.value : '').trim();
+  const naam = (naamInput ? naamInput.value : '').trim();
+
+  if(!code){ toonLoginFout('Vul de bedrijfscode in.'); return; }
+  if(!naam){ toonLoginFout('Vul je naam in.'); return; }
   verbergLoginFout();
   toonLoginLaden(true);
 
-  // Als Flow 4 nog niet ingesteld is: waarschuw maar laat toch toe (demo-modus)
+  // Stap 1 — bedrijfscode valideren
+  // CONFIG.bedrijfsCode komt via bootstrap uit ShiftConfig (ConfigType=Algemeen, Titel=BedrijfsCode).
+  // Leeg = code-check uitgeschakeld (bootstrap nog niet geladen of demo-modus).
+  if(CONFIG.bedrijfsCode && code !== CONFIG.bedrijfsCode){
+    toonLoginLaden(false);
+    toonLoginFout('Onjuiste bedrijfscode. Neem contact op met de beheerder.');
+    return;
+  }
+
+  // Code onthouden als checkbox aangevinkt
+  const onthoudenCheckbox = document.getElementById('login-code-onthouden');
+  if(onthoudenCheckbox && onthoudenCheckbox.checked){
+    localStorage.setItem('wml_code_onthouden', '1');
+    localStorage.setItem('wml_bedrijfscode', code);
+  }
+
+  // Stap 2 — naam valideren via Flow 4 (hardcoded URL)
   if(!FLOW_URLS.validateUser){
-    console.warn('Flow 4 (validateUser) nog niet ingesteld — naam geaccepteerd zonder ShiftConfig-validatie.');
+    console.warn('IT_VALIDATE_URL niet ingevuld — naam geaccepteerd zonder validatie (demo-modus).');
     volledigInloggen({naam: naam, rol: 'Teamleider', afdeling: '', offline: true});
     return;
   }
 
   try {
     const resp = await fetch(FLOW_URLS.validateUser, {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ naam: naam })
+      body:    JSON.stringify({ naam: naam })
     });
-
     if(!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-
     if(data.gevonden){
-      volledigInloggen({
-        naam:      data.naam      || naam,
-        rol:       data.rol       || 'Teamleider',
-        afdeling:  data.afdeling  || '',
-        offline:   false
-      });
+      volledigInloggen({naam: data.naam||naam, rol: data.rol||'Teamleider', afdeling: data.afdeling||'', offline: false});
     } else {
-      toonLoginFout(
-        '"' + naam + '" is niet gevonden in de gebruikerslijst. ' +
-        'Controleer je naam of neem contact op met de beheerder.'
-      );
+      toonLoginFout('"' + naam + '" is niet gevonden. Controleer de schrijfwijze of neem contact op met de beheerder.');
     }
-  } catch(e) {
+  } catch(e){
     console.error('Flow 4 fout:', e);
-    toonLoginFout(
-      'Kan de gebruikerslijst niet bereiken (' + e.message + '). ' +
-      'Controleer je internetverbinding of de Flow 4-URL in Configuratie → Verbinding.'
-    );
+    toonLoginFout('Kan de gebruikerslijst niet bereiken. Controleer je verbinding.');
   } finally {
     toonLoginLaden(false);
   }
+}
+
+function verbergLoginOverlay(){
+  const el = document.getElementById('login-overlay');
+  if(el) el.style.display = 'none';
 }
 
 // ── AUTO-UITLOGGEN NA 10 MINUTEN INACTIVITEIT ─────────────────────────────
@@ -3026,54 +3143,59 @@ function cfBadge(label, kleur){
 // 1. Productielijnen
 // Verbinding-sectie — Flow-URLs instellen en gebruiker beheren
 function renderConfigVerbinding(){
+  const bootstrapOk = !!FLOW_URLS.bootstrap;
+  const flowStatus = [
+    {label:'Flow 1 — Overdracht',        ok: !!FLOW_URLS.overdracht},
+    {label:'Flow 2 — Dagoverleg',         ok: !!FLOW_URLS.getDagoverleg},
+    {label:'Flow 3 — Vorige shift',       ok: !!FLOW_URLS.getVorigeShift},
+    {label:'Flow 4 — Gebruiker valideren',ok: !!FLOW_URLS.validateUser},
+    {label:'Flow 5 — Config bijwerken',   ok: !!FLOW_URLS.configBijwerken},
+  ];
   const html = '<div class="space-y-4">'
-    + '<p class="text-xs text-muted">Kopieer de HTTP POST-URL van elke Power Automate-flow en plak hem hieronder. '
-    + 'Je vindt de URL na het publiceren van de flow via: <b>Trigger → "URL kopiëren"</b>. '
-    + 'Opgeslagen in de browser (localStorage) — blijft staan na sluiten van de tab.</p>'
-    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 4 — Gebruiker valideren <span class="text-danger font-bold">(aanbevolen)</span></label>'
+    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Bootstrap-URL (Flow 0) <span class="text-danger">*</span></label>'
     + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
-    + 'id="cfg-flow-validate" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
-    + 'value="' + esc(FLOW_URLS.validateUser) + '" onchange="cfSlaFlowUrlOp(\'validateUser\',this.value)">'
-    + '<p class="text-micro-caption text-muted mt-0.5">Controleert naam tegen ShiftConfig (ConfigType = Gebruiker) bij elke login. Zonder deze URL wordt inloggen niet gevalideerd.</p></div>'
+    + 'id="cfg-flow-bootstrap" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
+    + 'value="' + esc(FLOW_URLS.bootstrap) + '" onchange="cfSlaBootstrapOp(this.value)">'
+    + '<p class="text-micro-caption text-muted mt-0.5">Enige URL die je handmatig hoeft in te voeren. Alle andere URLs en instellingen komen automatisch uit ShiftConfig.</p></div>'
 
-    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 1 — Shift Overdracht (verplicht)</label>'
-    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
-    + 'id="cfg-flow-overdracht" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
-    + 'value="' + esc(FLOW_URLS.overdracht) + '" onchange="cfSlaFlowUrlOp(\'overdracht\',this.value)">'
-    + '<p class="text-micro-caption text-muted mt-0.5">Ontvangt de volledige shift-payload bij elke Overdracht.</p></div>'
+    + '<div class="bg-surface-container-low rounded-lg p-3">'
+    + '<p class="text-label-ui font-bold mb-2">Status Flow-URLs (geladen via bootstrap)</p>'
+    + flowStatus.map(function(f){
+        return '<div class="flex items-center gap-2 py-1 text-xs">'
+          + '<span class="material-symbols-outlined text-[14px] ' + (f.ok ? 'text-secondary' : 'text-muted') + '">'
+          + (f.ok ? 'check_circle' : 'radio_button_unchecked') + '</span>'
+          + '<span class="' + (f.ok ? '' : 'text-muted') + '">' + f.label + '</span>'
+          + '</div>';
+      }).join('')
+    + '</div>'
 
-    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 2 — Dagoverleg ophalen</label>'
-    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
-    + 'id="cfg-flow-dagoverleg" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
-    + 'value="' + esc(FLOW_URLS.getDagoverleg) + '" onchange="cfSlaFlowUrlOp(\'getDagoverleg\',this.value)"></div>'
-
-    + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Flow 3 — Vorige shift ophalen</label>'
-    + '<input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-xs font-mono-num focus:ring-1 focus:ring-secondary focus:border-secondary outline-none" '
-    + 'id="cfg-flow-vorige" type="url" placeholder="https://prod-xx.westeurope.logic.azure.com:443/workflows/..." '
-    + 'value="' + esc(FLOW_URLS.getVorigeShift) + '" onchange="cfSlaFlowUrlOp(\'getVorigeShift\',this.value)"></div>'
+    + '<button onclick="herlaadBootstrap()" class="w-full py-2.5 rounded-lg border border-secondary text-secondary text-sm font-bold hover:bg-secondary-container transition-colors flex items-center justify-center gap-2">'
+    + '<span class="material-symbols-outlined text-[16px]">sync</span> Config herladen vanuit SharePoint</button>'
 
     + '<div class="p-3 bg-surface-container-low rounded-lg flex items-center justify-between">'
     + '<div><p class="text-label-ui font-bold">Ingelogd als: ' + esc(INGELOGD ? INGELOGD.naam : '—') + '</p>'
-    + '<p class="text-micro-caption text-muted">Naam wordt opgeslagen in de browser. Klik om te wijzigen.</p></div>'
+    + '<p class="text-micro-caption text-muted">Klik om te wijzigen.</p></div>'
     + '<button class="px-3 py-1.5 border border-border rounded text-xs hover:bg-surface-container transition-colors" onclick="uitloggen()">Naam wijzigen / uitloggen</button>'
     + '</div></div>';
-  return cfCard('Verbinding — Power Automate Flow-URLs', 'link', '#1D4ED8', html);
+  return cfCard('Verbinding — Bootstrap & Flow-URLs', 'link', '#1C2D4A', html);
 }
-function cfSlaFlowUrlOp(sleutel, url){
-  FLOW_URLS[sleutel] = url.trim();
-  // Persist in localStorage zodat de URL niet kwijtraakt bij page refresh
-  try {
-    const opgeslagen = JSON.parse(localStorage.getItem('wml_flow_urls') || '{}');
-    opgeslagen[sleutel] = url.trim();
-    localStorage.setItem('wml_flow_urls', JSON.stringify(opgeslagen));
-    console.info('Flow-URL opgeslagen:', sleutel, '→', url.trim());
-  } catch(e){ console.warn('Kon Flow-URL niet opslaan in localStorage:', e); }
+function cfSlaBootstrapOp(url){
+  FLOW_URLS.bootstrap = url.trim();
+  try { localStorage.setItem('wml_flow_urls', JSON.stringify({bootstrap: url.trim()})); } catch(e){}
+}
+async function herlaadBootstrap(){
+  toonToast('Config herladen vanuit SharePoint...');
+  const ok = await laadConfigViaBootstrap();
+  cfToepassenEffecten();
+  renderConfigPagina(); // herrender de config-pagina met nieuwe waarden
+  toonToast(ok ? '✓ Config bijgewerkt vanuit SharePoint.' : '⚠ Bootstrap niet bereikbaar — lokale config ongewijzigd.');
 }
 function laadOpgeslagenFlowUrls(){
   try {
     const opgeslagen = JSON.parse(localStorage.getItem('wml_flow_urls') || '{}');
-    Object.keys(opgeslagen).forEach(function(k){ if(FLOW_URLS.hasOwnProperty(k)) FLOW_URLS[k] = opgeslagen[k]; });
-  } catch(e){ console.warn('Kon Flow-URLs niet laden uit localStorage:', e); }
+    // Alleen de bootstrap-URL laden — de rest komt via de bootstrap-flow zelf
+    if(opgeslagen.bootstrap) FLOW_URLS.bootstrap = opgeslagen.bootstrap;
+  } catch(e){ console.warn('Flow-URLs laden mislukt:', e); }
 }
 
 function renderConfigProductielijnen(){
@@ -3161,7 +3283,15 @@ function cfDrempelVeld(label, sleutel, waarde, eenheid){
 }
 function cfUpdateDrempel(sleutel, val){
   const n = Number(val);
-  if(n>0) CONFIG.drempelwaarden[sleutel] = n;
+  if(n <= 0) return;
+  CONFIG.drempelwaarden[sleutel] = n;
+  // Write-back naar SharePoint via Flow 5
+  const titelMap = {wasteKg:'WasteKg', stilstandMin:'StilstandMin', extraWerkMin:'ExtraWerkMin'};
+  if(titelMap[sleutel]){
+    slaConfigItemOp(titelMap[sleutel], {WaardeNumeriek1: n}).then(function(ok){
+      toonToast(ok ? '✓ Drempelwaarde bijgewerkt in SharePoint.' : '⚠ Lokaal gewijzigd — sync mislukt.');
+    });
+  }
 }
 
 // 4. Notificatie-routing
@@ -3352,18 +3482,23 @@ document.getElementById('nf-vervolgactie').innerHTML = CONFIG.vervolgactieRoutes
 toggleLijnVeld();
 toggleCategorieVelden();
 
-// Herstel opgeslagen Flow-URLs uit localStorage (blijven staan na page refresh)
+// Herstel opgeslagen Bootstrap-URL uit localStorage
 laadOpgeslagenFlowUrls();
 
-// UI alvast tonen terwijl login-prompt nog open is
+// UI alvast tonen
 switchAfdeling('Productie');
 renderDagoverleg();
 document.getElementById('shift-sticky-footer').style.display = 'flex';
 
-// Login: naam invoeren via prompt (opgeslagen in localStorage).
-// Geen SharePoint-sessie of Azure AD nodig — werkt van elk domein incl. GitHub Pages.
-// Wordt later vervangen door MSAL.js SSO wanneer Azure AD-app-registratie klaar is.
-initialiseerLogin();
+// Bootstrap-flow aanroepen (async) — haalt config + alle andere flow-URLs op uit ShiftConfig.
+// Als de bootstrap-URL nog niet is ingesteld, gebruikt de app de lokale standaard-config.
+// Loginscherm wordt getoond zodra de bootstrap klaar is (of meteen als er geen URL is).
+laadConfigViaBootstrap().then(function(){
+  cfToepassenEffecten(); // dropdowns en lijsten vernieuwen na config-update
+  initialiseerLogin();
+}).catch(function(){
+  initialiseerLogin();
+});
 
 // Reset de 10-minuten inactiviteits-timer bij elke gebruikersactie.
 // passive:true zodat touch-events het scrollen niet vertragen.
