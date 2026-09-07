@@ -816,7 +816,25 @@ tailwind.config = {
   </div>
 </div>
 
-<!-- BottomNavBar (mobile only) -->
+<!-- Dagoverleg detail-modal: volledig rapport van een afwijking/vervolgactie -->
+<div class="modal-overlay" id="modal-dagoverleg-detail">
+  <div class="bg-paper rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+    <div class="px-6 py-4 flex justify-between items-center shrink-0" id="modal-do-header" style="background:#1C2D4A; color:white">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">description</span>
+        <h3 class="text-base font-bold" id="modal-do-titel">Afwijking detail</h3>
+      </div>
+      <button class="hover:bg-white/20 p-1 rounded-full transition-colors" onclick="closeModal('modal-dagoverleg-detail')">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="overflow-y-auto p-6 space-y-4 max-h-[70vh]" id="modal-do-body"></div>
+    <div class="px-6 py-3 border-t border-border bg-surface-container-low flex justify-end gap-3">
+      <button onclick="closeModal('modal-dagoverleg-detail')" class="px-4 py-2 border border-border rounded-lg text-sm hover:bg-surface-container transition-colors">Sluiten</button>
+      <button id="modal-do-afronden-btn" onclick="" class="px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors" style="background:#B8963A">✓ Afronden</button>
+    </div>
+  </div>
+</div>
 <nav class="md:hidden fixed bottom-0 left-0 w-full z-50 grid grid-cols-5 items-center h-16 bg-paper border-t border-border shadow-lg bottom-nav-safe">
   <button class="navlink-mobile flex flex-col items-center justify-center text-muted gap-0.5" onclick="switchPage('shift')" id="navmobile-shift">
     <span class="material-symbols-outlined">assignment_turned_in</span><span class="text-micro-caption">Shift</span>
@@ -1721,9 +1739,50 @@ function spItemNaarVervolgactie(item, idx){
     vervolgactie: spWaarde(item.Vervolgactie) || 'Geen',
     status:       spWaarde(item.DagoverlegStatus) || 'Open',
     prioriteit:   spWaarde(item.Prioriteit) || 'Laag',
+    escalatieniveau: spWaarde(item.EscalatieNiveau) || 'Routinematig',
     gemeld:       0,
-    spId:         item.ID
+    spId:         item.ID,
+    detail: {
+      impact:       stripHtml(item.EffectImpact),
+      oorzaak:      stripHtml(item.Oorzaak),
+      correctief:   stripHtml(item.Correctief),
+      preventief:   stripHtml(item.Preventief),
+      gemeldDoor:   spWaarde(item.GemeldDoor) || '',
+      gemeldOp:     item.GemeldOp || item.Created || '',
+      wasteKg:      item.WasteKg     || 0,
+      reworkKg:     item.ReworkKg    || 0,
+      stilstandMin: item.StilstandMin || 0,
+      vreemdVoorwerp: !!item.VreemdVoorwerp,
+      categorie:    spWaarde(item.Categorie)
+    }
   };
+}
+
+function pushNaarDagoverleg(afdeling, lijn, titel, vervolgactie, escalatieniveau, prioriteit, detailData){
+  const id = 'va-live-'+Date.now()+'-'+Math.floor(Math.random()*1000);
+  VERVOLGACTIES.push({
+    id:id, titel:titel, afdeling:afdeling, lijn:lijn,
+    vervolgactie:vervolgactie, status:'Open', gemeld:0,
+    prioriteit: escalatieniveau==='Kritiek' ? 'Hoog' : prioriteit,
+    escalatieniveau: escalatieniveau || 'Routinematig',
+    detail: detailData || null
+  });
+  renderDagoverleg();
+  return id;
+}
+function pushOfUpdateDagoverleg(bestaandId, afdeling, lijn, titel, vervolgactie, escalatieniveau, prioriteit, detailData){
+  const prioriteitVoorDagoverleg = escalatieniveau==='Kritiek' ? 'Hoog' : prioriteit;
+  if(bestaandId){
+    const bestaand = VERVOLGACTIES.find(function(x){return x.id===bestaandId;});
+    if(bestaand){
+      bestaand.titel=titel; bestaand.afdeling=afdeling; bestaand.lijn=lijn;
+      bestaand.vervolgactie=vervolgactie; bestaand.prioriteit=prioriteitVoorDagoverleg;
+      if(detailData) bestaand.detail = detailData;
+      renderDagoverleg();
+      return bestaandId;
+    }
+  }
+  return pushNaarDagoverleg(afdeling, lijn, titel, vervolgactie, escalatieniveau, prioriteit, detailData);
 }
 function spItemNaarBlokkade(item){
   return {
@@ -1786,7 +1845,78 @@ async function renderDagoverleg(){
   renderDagoverlegUI(gecombineerd, alleBlokkades);
 }
 
+function openDagoverlegDetail(id, routeCode){
+  // Zoek het item in gecombineerde VERVOLGACTIES + sp-items
+  const item = _dagoverlegItems && _dagoverlegItems.find(function(v){ return v.id === id; });
+  if(!item) return;
+
+  const d     = item.detail || {};
+  const kleur = item.prioriteit==='Hoog' ? '#C0392B' : item.escalatieniveau==='Aandachtspunt' ? '#D97706' : '#1C2D4A';
+
+  document.getElementById('modal-do-header').style.background = kleur;
+  document.getElementById('modal-do-titel').textContent = item.titel;
+
+  function rij(label, waarde){
+    if(!waarde) return '';
+    return '<div class="space-y-0.5">'
+      + '<p class="text-metadata-caps text-muted uppercase">' + label + '</p>'
+      + '<p class="text-sm text-ink">' + esc(waarde) + '</p>'
+      + '</div>';
+  }
+  function kpi(label, waarde, eenheid){
+    if(!waarde) return '';
+    return '<div class="bg-surface-container-low rounded-lg p-3 text-center">'
+      + '<p class="text-micro-caption text-muted uppercase">' + label + '</p>'
+      + '<p class="font-mono-num font-bold text-base">' + waarde + '<span class="text-muted font-normal text-xs">' + eenheid + '</span></p>'
+      + '</div>';
+  }
+
+  const kpis = [kpi('Waste', d.wasteKg, 'kg'), kpi('Rework', d.reworkKg, 'kg'), kpi('Stilstand', d.stilstandMin, 'min')].filter(Boolean);
+
+  document.getElementById('modal-do-body').innerHTML =
+    '<div class="flex flex-wrap gap-2 items-center">'
+    + '<span class="escalatie-badge escalatie-'+(item.escalatieniveau||'Routinematig')+'">'+esc(item.escalatieniveau||'Routinematig')+'</span>'
+    + '<span class="prioriteit-badge prioriteit-'+(item.prioriteit||'Laag')+'">'+esc(item.prioriteit||'Laag')+'</span>'
+    + '<span class="text-xs text-muted">'+esc(item.afdeling)+' · '+esc(item.lijn)+'</span>'
+    + (d.vreemdVoorwerp ? '<span class="prioriteit-badge prioriteit-Hoog">Vreemd voorwerp</span>' : '')
+    + '</div>'
+
+    + (kpis.length ? '<div class="grid grid-cols-3 gap-2">'+kpis.join('')+'</div>' : '')
+
+    + '<div class="space-y-3 divide-y divide-border">'
+    + rij('Omschrijving', item.titel)
+    + rij('Effect / Impact', d.impact)
+    + rij('Oorzaak (root cause)', d.oorzaak)
+    + rij('Corrigerende maatregel', d.correctief)
+    + rij('Preventieve maatregel', d.preventief)
+    + '</div>'
+
+    + '<div class="bg-surface-container rounded-lg p-3 text-xs text-muted flex flex-wrap gap-x-4 gap-y-1">'
+    + (d.gemeldDoor ? '<span><b>Gemeld door:</b> '+esc(d.gemeldDoor)+'</span>' : '')
+    + (d.gemeldOp   ? '<span><b>Tijdstip:</b> '+esc(d.gemeldOp)+'</span>' : '')
+    + '<span><b>Vervolgactie:</b> '+esc(item.vervolgactie)+'</span>'
+    + '<span><b>Status:</b> '+esc(item.status)+'</span>'
+    + '</div>';
+
+  // Afronden-knop koppelen
+  const afrondenBtn = document.getElementById('modal-do-afronden-btn');
+  if(item.status === 'Afgerond'){
+    afrondenBtn.style.display = 'none';
+  } else {
+    afrondenBtn.style.display = '';
+    afrondenBtn.onclick = function(){
+      closeModal('modal-dagoverleg-detail');
+      handleAfronden(id, routeCode);
+    };
+  }
+
+  openModal('modal-dagoverleg-detail');
+}
+
+// Bewaar een referentie naar de huidige gecombineerde lijst voor het detail-paneel
+let _dagoverlegItems = [];
 function renderDagoverlegUI(open, actieveBlokkades){
+  _dagoverlegItems = open;
   const totaal = open.filter(function(v){return v.status!=='Afgerond';}).length + actieveBlokkades.length;
   const teller = document.getElementById('count-open');
   teller.textContent = totaal;
@@ -1827,12 +1957,18 @@ function renderDagoverlegUI(open, actieveBlokkades){
       const isKritiek = v.prioriteit==='Hoog';
       const kleur = isKritiek ? '#C0392B' : eclass.kleur;
       const dagenLabel = dagen===0 ? 'Nieuw' : dagen+' '+eclass.label;
-      html += '<div class="bg-paper border border-border rounded-lg p-3 mb-2 flex flex-wrap items-center gap-3 border-l-4'+(isKritiek?' bg-danger-pale':'')+'" style="border-left-color:'+kleur+(isKritiek?';animation:pulse 1.8s ease-in-out infinite':'')+'">'
-        + '<div class="flex-1 min-w-[200px]"><p class="text-sm font-bold flex items-center gap-2 flex-wrap">'+(isKritiek?'<span class="escalatie-badge prioriteit-Hoog">Kritiek</span>':'')+esc(v.titel)+'</p>'
-        + '<p class="text-xs text-muted mt-0.5">'+v.afdeling+' · '+v.lijn+(!isKritiek?' <span class="escalatie-badge prioriteit-'+v.prioriteit+'">'+v.prioriteit+'</span>':'')+'</p></div>'
+      html += '<div class="bg-paper border border-border rounded-lg mb-2 flex flex-wrap items-center gap-3 border-l-4 overflow-hidden'+(isKritiek?' bg-danger-pale':'')+'" style="border-left-color:'+kleur+(isKritiek?';animation:pulse 1.8s ease-in-out infinite':'')+'">'
+        + '<div class="flex-1 min-w-[200px] p-3 cursor-pointer hover:bg-surface-container-low transition-colors" onclick="openDagoverlegDetail(\''+v.id+'\',\''+route.code+'\')">'
+        + '<p class="text-sm font-bold flex items-center gap-2 flex-wrap">'+(isKritiek?'<span class="escalatie-badge prioriteit-Hoog">Kritiek</span>':'')+esc(v.titel)+'</p>'
+        + '<p class="text-xs text-muted mt-0.5">'+v.afdeling+' · '+v.lijn+(!isKritiek?' <span class="escalatie-badge prioriteit-'+v.prioriteit+'">'+v.prioriteit+'</span>':'')
+        + (v.detail && v.detail.oorzaak ? ' <span class="text-[10px] text-info">· rootcause ✓</span>' : '')
+        + '</p></div>'
+        + '<div class="flex items-center gap-1 pr-3 shrink-0">'
         + '<span class="text-[10px] font-bold uppercase px-2 py-1.5 rounded text-white" style="background:'+statusKleur(v.status)+'">'+v.status+'</span>'
-        + '<span class="font-mono-num text-[11px] font-bold px-2.5 py-1.5 rounded" style="background:'+kleur+'22;color:'+kleur+'">'+dagenLabel+'</span>'
-        + '<button class="text-secondary text-sm font-bold hover:underline active:opacity-70 min-h-[44px] px-2" onclick="handleAfronden(\''+v.id+'\',\''+route.code+'\')">Afronden</button></div>';
+        + '<span class="font-mono-num text-[11px] font-bold px-2 py-1.5 rounded" style="background:'+kleur+'22;color:'+kleur+'">'+dagenLabel+'</span>'
+        + '<button class="text-secondary text-sm font-bold hover:underline active:opacity-70 min-h-[44px] px-2" onclick="event.stopPropagation();handleAfronden(\''+v.id+'\',\''+route.code+'\')">Afronden</button>'
+        + '<span class="material-symbols-outlined text-muted text-[18px]">chevron_right</span>'
+        + '</div></div>';
     });
     html += '</div>';
   });
@@ -2082,6 +2218,20 @@ function handleOverdracht(afdeling){
     fs.gembaAfgestemd = true;
     if(meldingen.length){ console.group('Power Automate — notificaties bij overdracht ('+afdeling+')'); meldingen.forEach(function(m){console.log(m);}); console.groupEnd(); }
     await logSharePointPayload(afdeling, 'Overgedragen');
+
+    // Concept-item opruimen na overdracht:
+    // Status → Overgedragen, titel → zonder '-CONCEPT'
+    if(FLOW_URLS.conceptSync && INGELOGD){
+      fetch(FLOW_URLS.conceptSync, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          actie:    'afronden',
+          gebruiker: INGELOGD.naam,
+          datum:    vandaagISO()
+        })
+      }).catch(function(e){ console.warn('Concept opruimen mislukt:', e.message); });
+    }
 
     // Bug-fix: na succesvolle overdracht lokale VERVOLGACTIES leegmaken.
     // Anders verschijnen ze dubbel in Dagoverleg (lokaal + uit SharePoint via Flow 2).
