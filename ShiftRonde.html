@@ -218,6 +218,7 @@ tailwind.config = {
       </div>
       <div class="hidden md:block text-label-ui opacity-80" id="desktop-page-title">Huidige Shift — <span id="desktop-page-afdeling">Productie</span></div>
       <div class="flex items-center gap-3">
+        <span id="sync-indicator" class="hidden md:inline-block text-[10px] text-white/50 font-mono-num" title="Laatste sync"></span>
         <span class="material-symbols-outlined opacity-80 cursor-pointer" title="Notificaties (decoratief)">notifications</span>
         <span class="material-symbols-outlined opacity-80 cursor-pointer" title="Help (decoratief)">help</span>
         <div class="md:hidden w-9 h-9 rounded-full bg-secondary flex items-center justify-center font-bold text-[11px] cursor-pointer active:opacity-70 transition-opacity" id="tb-user-avatar-mobile" onclick="vraagUitloggen()" title="Uitloggen / naam wijzigen">?</div>
@@ -1317,11 +1318,28 @@ function autoSaveNaRender(){ slaShiftDataOp(); syncConceptThrottled(); }
 // het ShiftRapporten-item). Throttled op 1x per minuut om de flow niet
 // te overbelasten bij elke keystroke.
 // ─────────────────────────────────────────────────────────────────────────
-let _conceptSyncTimeout = null;
+let _conceptSyncTimeout  = null;
+let _conceptSyncLastRun  = 0;
+const CONCEPT_SYNC_MIN_MS = 30000; // minimaal 30 seconden tussen twee syncs
+
 function syncConceptThrottled(){
   if(!FLOW_URLS.conceptSync || !INGELOGD) return;
-  clearTimeout(_conceptSyncTimeout);
-  _conceptSyncTimeout = setTimeout(syncConceptNaarSharePoint, 60000); // 1 minuut debounce
+  const nu = Date.now();
+  const msSindsLaatste = nu - _conceptSyncLastRun;
+
+  if(msSindsLaatste >= CONCEPT_SYNC_MIN_MS){
+    // Genoeg tijd verstreken → sync direct
+    clearTimeout(_conceptSyncTimeout);
+    _conceptSyncLastRun = nu;
+    syncConceptNaarSharePoint();
+  } else {
+    // Te snel → plan in voor het einde van de wachttijd
+    clearTimeout(_conceptSyncTimeout);
+    _conceptSyncTimeout = setTimeout(function(){
+      _conceptSyncLastRun = Date.now();
+      syncConceptNaarSharePoint();
+    }, CONCEPT_SYNC_MIN_MS - msSindsLaatste);
+  }
 }
 
 // ── FOTO-COMPRESSIE ───────────────────────────────────────────────────────
@@ -1390,7 +1408,6 @@ function herstelFotosInFormState(fotos){
 async function syncConceptNaarSharePoint(){
   if(!FLOW_URLS.conceptSync || !INGELOGD) return;
   try {
-    // Diepe kopie zonder foto-data (die gaan apart als gecomprimeerde versie)
     const kopie = JSON.parse(JSON.stringify(formState));
     ['Productie','Inpak'].forEach(function(afd){
       if(!kopie[afd]) return;
@@ -1398,9 +1415,8 @@ async function syncConceptNaarSharePoint(){
       (kopie[afd].blokkades  || []).forEach(function(b){ b.foto = null; });
     });
 
-    // Comprimeer alle foto's (async — canvas doet het in de browser)
     const fotos = await verzamelEnComprimeerFotos();
-    const aantalFotos = Object.keys(fotos).length;
+    const nu = new Date().toISOString();
 
     await fetch(FLOW_URLS.conceptSync, {
       method:  'POST',
@@ -1410,13 +1426,22 @@ async function syncConceptNaarSharePoint(){
         afdeling:     huidigeAfdeling,
         datum:        vandaagISO(),
         shift:        formState[huidigeAfdeling].shift || bepaalShiftOpBasisVanTijd(),
+        opgeslagenOp: nu,
         conceptData:  JSON.stringify(kopie),
-        conceptFotos: JSON.stringify(fotos)  // gecomprimeerde fotos apart
+        conceptFotos: JSON.stringify(fotos)
       })
     });
-    console.info('Concept gesynchroniseerd naar SharePoint' + (aantalFotos ? ' incl. ' + aantalFotos + ' foto(s).' : '.'));
+
+    // Kleine sync-indicator rechtsboven in het scherm
+    const syncEl = document.getElementById('sync-indicator');
+    if(syncEl){
+      const tijd = new Date().toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
+      syncEl.textContent = '↑ ' + tijd;
+      syncEl.title = 'Gesynchroniseerd met SharePoint om ' + tijd;
+    }
+    console.info('Concept gesynchroniseerd:', nu);
   } catch(e){
-    console.warn('Concept-sync mislukt (geen verbinding?):', e.message);
+    console.warn('Concept-sync mislukt:', e.message);
   }
 }
 
@@ -3103,6 +3128,7 @@ function opslaanAfwijking(){
 
   closeModal('modal-nieuw');
   renderHuidigeShift();
+  syncConceptThrottled();
 }
 function haalGemeldOp(ctx){
   try{
