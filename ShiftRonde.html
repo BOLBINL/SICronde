@@ -810,6 +810,7 @@ tailwind.config = {
         style="background:#B8963A" id="login-knop">
         Inloggen
       </button>
+
     </div>
   </div>
 </div>
@@ -884,25 +885,22 @@ const CONFIG = {
 // Architectuur: GitHub Pages → Power Automate HTTP-trigger → SharePoint
 // Voordelen: geen CORS, geen Azure AD-app nodig, werkt van elk domein.
 // ═══════════════════════════════════════════════════════════════════════════
-// DOOR IT IN TE VULLEN — vul na het aanmaken van de flows in Power Automate.
-// Kopieer de HTTP POST URL van elke flow via: Trigger → "URL kopiëren".
-// Nooit openbaar delen — de sig=-parameter is een geheim.
-// ═══════════════════════════════════════════════════════════════════════════
-const IT_BOOTSTRAP_URL   = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — WML Bootstrap Config Ophalen
-const IT_VALIDATE_URL    = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — WML Gebruiker Valideren
-// ═══════════════════════════════════════════════════════════════════════════
+// ── IT: vul hieronder de Bootstrap-URL in na het aanmaken van Flow 0 ────
+// Alle andere URLs worden automatisch geladen via Bootstrap uit ShiftConfig.
+// De bedrijfscode-check slaat deze URL op in localStorage zodat de app
+// ook na verversing direct verbinding kan maken zonder opnieuw in te loggen.
+// ─────────────────────────────────────────────────────────────────────────
+const IT_BOOTSTRAP_URL = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // ← Flow 0 URL hier invullen (door IT beheerder)
 
 const FLOW_URLS = {
-  bootstrap:       IT_BOOTSTRAP_URL,
-  validateUser:    IT_VALIDATE_URL,
+  bootstrap:       IT_BOOTSTRAP_URL,  // hardcoded, wordt bij login naar localStorage geschreven
+  validateUser:    '',   // geladen via Bootstrap uit ShiftConfig
   overdracht:      '',
   getDagoverleg:   '',
   getVorigeShift:  '',
   configBijwerken: '',
-  // Concept-sync: slaat de lopende shift op in SharePoint zodat andere
-  // apparaten van dezelfde gebruiker dezelfde data zien.
-  conceptSync:     '',   // Flow 6 — Concept Shift Opslaan
-  getConceptShift: ''    // Flow 7 — Concept Shift Ophalen
+  conceptSync:     '',
+  getConceptShift: ''
 };
 
 // ── BOOTSTRAP: alle config + flow-URLs ophalen uit ShiftConfig ────────────
@@ -1085,7 +1083,7 @@ let INGELOGD = null;
 function toonLoginOverlay(){
   const el = document.getElementById('login-overlay');
   if(el){ el.style.cssText = ''; el.style.display = 'flex'; }
-  // Bedrijfscode herstellen als onthouden (alleen de code, nooit de naam)
+  toonLoginForm();
   const onthouden   = localStorage.getItem('wml_code_onthouden') === '1';
   const bewaardCode = localStorage.getItem('wml_bedrijfscode') || '';
   const codeInput   = document.getElementById('login-code-input');
@@ -1093,14 +1091,16 @@ function toonLoginOverlay(){
   const naamInput   = document.getElementById('login-naam-input');
   if(codeInput && onthouden) codeInput.value = bewaardCode;
   if(codeCheck) codeCheck.checked = onthouden;
-  // Naam altijd leeg — nooit voorinvullen
   if(naamInput) naamInput.value = '';
   setTimeout(function(){
     const focus = (onthouden && bewaardCode) ? naamInput : codeInput;
     if(focus) focus.focus();
   }, 120);
 }
-function toonLoginForm(){} // stub — verbinding-paneel is verwijderd
+function toonLoginForm(){
+  const form = document.getElementById('login-form-paneel');
+  if(form) form.classList.remove('hidden');
+}
 
 function handleCodeOnthoudenToggle(checked){
   if(checked){
@@ -1133,6 +1133,15 @@ async function loginVersturen(){
     return;
   }
 
+  // Juiste bedrijfscode → Bootstrap-URL opslaan in localStorage.
+  // Zo laadt de app bij de volgende keer direct Bootstrap zonder dat de
+  // gebruiker iets hoeft in te stellen via "Verbinding instellen".
+  if(IT_BOOTSTRAP_URL){
+    try {
+      localStorage.setItem('wml_flow_urls', JSON.stringify({bootstrap: IT_BOOTSTRAP_URL}));
+    } catch(e){}
+  }
+
   // Code onthouden als checkbox aangevinkt
   const onthoudenCheckbox = document.getElementById('login-code-onthouden');
   if(onthoudenCheckbox && onthoudenCheckbox.checked){
@@ -1142,7 +1151,7 @@ async function loginVersturen(){
 
   // Stap 2 — naam valideren via Flow 4 (hardcoded URL)
   if(!FLOW_URLS.validateUser){
-    console.warn('IT_VALIDATE_URL niet ingevuld — naam geaccepteerd zonder validatie (demo-modus).');
+    console.warn('Flow 4 (validateUser) niet ingesteld — naam geaccepteerd zonder validatie (demo-modus). Stel de Bootstrap-URL in via het loginscherm.');
     volledigInloggen({naam: naam, rol: 'Teamleider', afdeling: '', offline: true});
     return;
   }
