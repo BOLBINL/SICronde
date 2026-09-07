@@ -884,17 +884,16 @@ const CONFIG = {
 // ============ POWER AUTOMATE KOPPELING ============
 // Architectuur: GitHub Pages → Power Automate HTTP-trigger → SharePoint
 // Voordelen: geen CORS, geen Azure AD-app nodig, werkt van elk domein.
-// ═══════════════════════════════════════════════════════════════════════════
-// ── IT: vul hieronder de Bootstrap-URL in na het aanmaken van Flow 0 ────
-// Alle andere URLs worden automatisch geladen via Bootstrap uit ShiftConfig.
-// De bedrijfscode-check slaat deze URL op in localStorage zodat de app
-// ook na verversing direct verbinding kan maken zonder opnieuw in te loggen.
 // ─────────────────────────────────────────────────────────────────────────
-const IT_BOOTSTRAP_URL = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // ← Flow 0 URL hier invullen (door IT beheerder)
+// IT: vul de twee URLs in na het aanmaken van de flows in Power Automate.
+// Alle overige URLs worden automatisch via Bootstrap geladen uit ShiftConfig.
+// ─────────────────────────────────────────────────────────────────────────
+const IT_BOOTSTRAP_URL = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — Bootstrap Config Ophalen
+const IT_VALIDATE_URL  = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — Gebruiker Valideren
 
 const FLOW_URLS = {
-  bootstrap:       IT_BOOTSTRAP_URL,  // hardcoded, wordt bij login naar localStorage geschreven
-  validateUser:    '',   // geladen via Bootstrap uit ShiftConfig
+  bootstrap:       IT_BOOTSTRAP_URL,
+  validateUser:    IT_VALIDATE_URL,
   overdracht:      '',
   getDagoverleg:   '',
   getVorigeShift:  '',
