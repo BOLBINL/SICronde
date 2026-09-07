@@ -1324,6 +1324,7 @@ const CONCEPT_SYNC_MIN_MS = 30000; // minimaal 30 seconden tussen twee syncs
 
 function syncConceptThrottled(){
   if(!FLOW_URLS.conceptSync || !INGELOGD) return;
+  if(_inlogSyncGeblokkeerd) return; // geen sync tijdens laden SP-data bij login
   const nu = Date.now();
   const msSindsLaatste = nu - _conceptSyncLastRun;
 
@@ -1489,6 +1490,10 @@ async function laadConceptVanSharePoint(naam){
 }
 
 // ── LOGIN FUNCTIES ─────────────────────────────────────────────────────────
+// Vlag: blokkeer concept-sync tijdens het inloggen zodat de lege startrender
+// de SP-data niet overschrijft voordat die geladen is.
+let _inlogSyncGeblokkeerd = false;
+
 function volledigInloggen(gebruiker){
   INGELOGD = gebruiker;
   localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
@@ -1498,22 +1503,25 @@ function volledigInloggen(gebruiker){
   resetAutoUitlogTimer();
 
   if(FLOW_URLS.getConceptShift){
-    // SharePoint is altijd de waarheid bij login.
-    // Lokale data is alleen fallback als SP niet bereikbaar is.
-    renderHuidigeShift(); // toon lege shift terwijl SP laadt
+    _inlogSyncGeblokkeerd = true;
+    _conceptSyncLastRun = Date.now(); // voorkom directe sync bij eerste render
+
+    renderHuidigeShift(); // render leeg — sync geblokkeerd, geen overschrijving
+
     laadConceptVanSharePoint(gebruiker.naam).then(function(spHersteld){
+      _inlogSyncGeblokkeerd = false;
       if(spHersteld){
         renderHuidigeShift();
         toonToast('✓ Shift-data geladen vanuit SharePoint.');
       } else {
-        // SP leeg of niet bereikbaar → probeer lokale cache als fallback
         const lokaalHersteld = herstelShiftData(gebruiker.naam);
-        renderHuidigeShift();
-        if(lokaalHersteld) toonToast('✓ Lokale shift-data hersteld (SP niet beschikbaar).');
+        if(lokaalHersteld){
+          renderHuidigeShift();
+          toonToast('✓ Lokale shift-data hersteld.');
+        }
       }
-    });
+    }).catch(function(){ _inlogSyncGeblokkeerd = false; });
   } else {
-    // Geen Flow 7 ingesteld → alleen lokale cache
     const lokaalHersteld = herstelShiftData(gebruiker.naam);
     renderHuidigeShift();
     if(lokaalHersteld) toonToast('✓ Je shift-data van vandaag is hersteld.');
@@ -1521,7 +1529,6 @@ function volledigInloggen(gebruiker){
 
   console.info('Ingelogd als:', INGELOGD.naam, INGELOGD.offline ? '(demo)' : '(gevalideerd)');
 }
-
 function toonLoginFout(tekst){
   document.getElementById('login-fout-tekst').textContent = tekst;
   document.getElementById('login-fout').classList.remove('hidden');
