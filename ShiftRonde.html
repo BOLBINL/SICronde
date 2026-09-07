@@ -1460,23 +1460,12 @@ async function laadConceptVanSharePoint(naam){
     const spData = JSON.parse(data.conceptData);
     if(spData.Productie && spData.Productie.datum !== vandaagISO()) return false;
 
-    // Vergelijk op basis van aantal items — betrouwbaarder dan timestamps
-    function telItems(state){
-      let n = 0;
-      ['Productie','Inpak'].forEach(function(afd){
-        if(!state[afd]) return;
-        Object.keys(state[afd].lijnen || {}).forEach(function(lijn){ n += (state[afd].lijnen[lijn].afwijkingen || []).length; });
-        n += (state[afd].veiligheid || []).length + (state[afd].blokkades || []).length + (state[afd].eWegingen || []).length;
-      });
-      return n;
-    }
-    const spAantal = telItems(spData), lokaalAantal = telItems(formState);
-    if(spAantal < lokaalAantal){
-      console.info('Lokaal (' + lokaalAantal + ' items) > SP (' + spAantal + ') — geen overschrijving.');
-      return false;
-    }
+    // SharePoint is de waarheid bij login — altijd overschrijven.
+    // Reden: meerdere apparaten kunnen onafhankelijk data hebben ingevoerd;
+    // SP heeft altijd de laatste gesynchroniseerde versie van de actieve gebruiker.
+    // Lokale data is alleen een fallback als SP niet bereikbaar is.
     Object.assign(formState, spData);
-    console.info('SP-data gebruikt: ' + spAantal + ' items vs lokaal ' + lokaalAantal);
+    console.info('SP-data geladen voor', naam, '— lokale data overschreven.');
     return true;
   } catch(e){
     console.warn('Concept laden van SharePoint mislukt:', e.message);
@@ -1489,32 +1478,29 @@ function volledigInloggen(gebruiker){
   INGELOGD = gebruiker;
   localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
 
-  // Stap 1: lokale data ophalen (snel, geen netwerk nodig)
-  const lokaalHersteld = herstelShiftData(gebruiker.naam);
-
   verbergLoginOverlay();
   renderTopbarLogin();
-  renderHuidigeShift();
   resetAutoUitlogTimer();
 
-  // Stap 2: ALTIJD ook SharePoint checken — ongeacht of lokale data aanwezig is.
-  // Reden: dezelfde gebruiker kan op een ander apparaat recentere data hebben
-  // ingevoerd die via Flow 6 naar SharePoint is gesynchroniseerd.
-  // We vergelijken de tijdstempels en gebruiken de meest recente versie.
   if(FLOW_URLS.getConceptShift){
+    // SharePoint is altijd de waarheid bij login.
+    // Lokale data is alleen fallback als SP niet bereikbaar is.
+    renderHuidigeShift(); // toon lege shift terwijl SP laadt
     laadConceptVanSharePoint(gebruiker.naam).then(function(spHersteld){
-      if(!spHersteld){
-        // Geen SP-data gevonden: toon melding alleen als er lokale data was
-        if(lokaalHersteld) toonToast('✓ Je shift-data van vandaag is hersteld.');
-        return;
+      if(spHersteld){
+        renderHuidigeShift();
+        toonToast('✓ Shift-data geladen vanuit SharePoint.');
+      } else {
+        // SP leeg of niet bereikbaar → probeer lokale cache als fallback
+        const lokaalHersteld = herstelShiftData(gebruiker.naam);
+        renderHuidigeShift();
+        if(lokaalHersteld) toonToast('✓ Lokale shift-data hersteld (SP niet beschikbaar).');
       }
-      // SP-data gevonden: vergelijk met lokale timestamp
-      // laadConceptVanSharePoint zet de data al in formState als het nieuwer is
-      renderHuidigeShift();
-      toonToast('✓ Shift-data gesynchroniseerd vanuit SharePoint.');
     });
   } else {
-    // Geen Flow 7 ingesteld: alleen lokale data
+    // Geen Flow 7 ingesteld → alleen lokale cache
+    const lokaalHersteld = herstelShiftData(gebruiker.naam);
+    renderHuidigeShift();
     if(lokaalHersteld) toonToast('✓ Je shift-data van vandaag is hersteld.');
   }
 
