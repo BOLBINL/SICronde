@@ -1460,34 +1460,23 @@ async function laadConceptVanSharePoint(naam){
     const spData = JSON.parse(data.conceptData);
     if(spData.Productie && spData.Productie.datum !== vandaagISO()) return false;
 
-    // Vergelijk timestamp SP vs lokale data
-    // SP-timestamp staat in data.opgeslagenOp (gezet door Flow 6)
-    const spTijd    = new Date(data.opgeslagenOp || 0).getTime();
-    const lokaalRaw = localStorage.getItem('wml_data_' + naam.toLowerCase());
-    const lokaalTijd = lokaalRaw
-      ? new Date(JSON.parse(lokaalRaw).opgeslagenOp || 0).getTime()
-      : 0;
-
-    if(spTijd <= lokaalTijd){
-      // Lokale data is even recent of nieuwer → SP niet gebruiken
-      console.info('Lokale data is recenter dan SharePoint — geen overschrijving.');
+    // Vergelijk op basis van aantal items — betrouwbaarder dan timestamps
+    function telItems(state){
+      let n = 0;
+      ['Productie','Inpak'].forEach(function(afd){
+        if(!state[afd]) return;
+        Object.keys(state[afd].lijnen || {}).forEach(function(lijn){ n += (state[afd].lijnen[lijn].afwijkingen || []).length; });
+        n += (state[afd].veiligheid || []).length + (state[afd].blokkades || []).length + (state[afd].eWegingen || []).length;
+      });
+      return n;
+    }
+    const spAantal = telItems(spData), lokaalAantal = telItems(formState);
+    if(spAantal < lokaalAantal){
+      console.info('Lokaal (' + lokaalAantal + ' items) > SP (' + spAantal + ') — geen overschrijving.');
       return false;
     }
-
-    // SP is nieuwer → overschrijf formState
     Object.assign(formState, spData);
-
-    // Herstel foto's als ze beschikbaar zijn
-    if(data.conceptFotos){
-      try {
-        const fotos = JSON.parse(data.conceptFotos);
-        herstelFotosInFormState(fotos);
-        const n = Object.keys(fotos).length;
-        if(n) console.info('Fotos hersteld vanuit SharePoint:', n);
-      } catch(fe){ console.warn('Fotos herstellen mislukt:', fe.message); }
-    }
-
-    console.info('SharePoint-data is nieuwer — formState bijgewerkt voor:', naam);
+    console.info('SP-data gebruikt: ' + spAantal + ' items vs lokaal ' + lokaalAantal);
     return true;
   } catch(e){
     console.warn('Concept laden van SharePoint mislukt:', e.message);
