@@ -913,7 +913,6 @@ const CONFIG = {
 const IT_BOOTSTRAP_URL = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — Bootstrap Config Ophalen
 const IT_VALIDATE_URL  = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — Gebruiker Valideren
 
-
 const FLOW_URLS = {
   bootstrap:       IT_BOOTSTRAP_URL,
   validateUser:    IT_VALIDATE_URL,
@@ -1299,29 +1298,39 @@ function herstelShiftData(naam){
       return false;
     }
 
-    // Bug-fix: ook controleren of het shift-tijdvak nog klopt.
-    // Als Nikita data van de Avondshift heeft maar nu de Nachtshift begonnen is,
-    // wil je niet de verkeerde shift-naam tonen of data van de vorige shift vermengen.
+    // Overdracht-vlag check: als er vandaag al een overdracht is gedaan
+    // voor Productie of Inpak → NIET herstellen uit localStorage.
+    // Dit voorkomt dat de data terugkomt na een refresh terwijl de shift
+    // al is overgedragen.
+    const prodOvergedragen = localStorage.getItem('wml_overgedragen_Productie') === vandaagISO();
+    const inpakOvergedragen = localStorage.getItem('wml_overgedragen_Inpak')    === vandaagISO();
+    if(prodOvergedragen || inpakOvergedragen){
+      // Carry-forward: actieve blokkades bewaren, rest weggooien
+      const blokkadeProd  = prodOvergedragen  ? [] : ((pakket.data.Productie||{}).blokkades||[]).filter(function(b){return b.status==='Actief';});
+      const blokkadeInpak = inpakOvergedragen ? [] : ((pakket.data.Inpak   ||{}).blokkades||[]).filter(function(b){return b.status==='Actief';});
+      if(blokkadeProd.length)  formState.Productie.blokkades = blokkadeProd;
+      if(blokkadeInpak.length) formState.Inpak.blokkades    = blokkadeInpak;
+      localStorage.removeItem('wml_data_' + naam.toLowerCase());
+      console.info('Lokaal herstel geblokkeerd — shift al overgedragen vandaag. Blokkades carry-forward:', blokkadeProd.length + blokkadeInpak.length);
+      return false;
+    }
+
+    // Shift-tijdvak check
     const huidigeShift = bepaalShiftOpBasisVanTijd();
     const hersteldeShiftProductie = pakket.data && pakket.data.Productie && pakket.data.Productie.shift;
-    const hersteldeShiftInpak    = pakket.data && pakket.data.Inpak    && pakket.data.Inpak.shift;
-
-    // Als de shift veranderd is: bewaar alleen de blokkades (die zijn shift-onafhankelijk),
-    // begin voor de rest opnieuw. Blokkades blijven actief tot QA ze vrijgeeft.
     if(hersteldeShiftProductie && hersteldeShiftProductie !== huidigeShift){
-      console.info('Shift-tijdvak veranderd (' + hersteldeShiftProductie + ' → ' + huidigeShift + ') — nieuwe shift gestart, blokkades overgedragen.');
+      console.info('Shift-tijdvak veranderd (' + hersteldeShiftProductie + ' → ' + huidigeShift + ') — nieuwe shift, blokkades overgedragen.');
       const actieveBlokkades = {
         Productie: (pakket.data.Productie.blokkades||[]).filter(function(b){return b.status==='Actief';}),
-        Inpak:     (pakket.data.Inpak    .blokkades||[]).filter(function(b){return b.status==='Actief';})
+        Inpak:     ((pakket.data.Inpak||{}).blokkades||[]).filter(function(b){return b.status==='Actief';})
       };
-      // Start schoon met alleen de carry-forward blokkades
       formState.Productie.blokkades = actieveBlokkades.Productie;
       formState.Inpak.blokkades     = actieveBlokkades.Inpak;
       localStorage.removeItem('wml_data_' + naam.toLowerCase());
-      return false; // toon geen herstel-toast, maar blokkades zijn wel meegenomen
+      return false;
     }
 
-    // Zelfde dag, zelfde shift → volledig herstellen
+    // Zelfde dag, zelfde shift, geen overdracht gedaan → volledig herstellen
     Object.assign(formState, pakket.data);
     console.info('Shift-data hersteld voor', naam, '— opgeslagen om', pakket.opgeslagenOp);
     return true;
@@ -1333,6 +1342,19 @@ function herstelShiftData(naam){
 
 // Automatisch opslaan na elke render van de Huidige Shift-pagina
 // (wordt aangeroepen vanuit renderHuidigeShift, zie verderop)
+// Schoon verouderde overdracht-vlaggen op bij app-start
+// (anders blokkeert de vlag van gisteren de data van vandaag)
+function schoonOverdrachtVlaggenOp(){
+  ['Productie','Inpak'].forEach(function(afd){
+    const sleutel = 'wml_overgedragen_' + afd;
+    const waarde  = localStorage.getItem(sleutel);
+    if(waarde && waarde !== vandaagISO()){
+      localStorage.removeItem(sleutel);
+      console.info('Overdracht-vlag verwijderd (andere dag):', sleutel);
+    }
+  });
+}
+
 function autoSaveNaRender(){ slaShiftDataOp(); syncConceptThrottled(); }
 
 // ── CONCEPT-SYNC: lopende shift bewaren in SharePoint ─────────────────────
@@ -1486,6 +1508,19 @@ async function laadConceptVanSharePoint(naam){
       ? JSON.parse(data.conceptData)
       : data.conceptData;
     if(spData.Productie && spData.Productie.datum !== vandaagISO()) return false;
+
+    // Blokkeer herstel als er vandaag al een overdracht is gedaan.
+    // Voorkomt dat oude concept-data terugkomt na refresh terwijl
+    // het SP concept-item nog niet op Overgedragen staat.
+    const afdelingSpData = (spData.Productie && spData.Productie.shift) ? 'Productie' : 'Inpak';
+    if(localStorage.getItem('wml_overgedragen_' + afdelingSpData) === vandaagISO()){
+      console.info('Concept-herstel geblokkeerd — shift al overgedragen vandaag voor', afdelingSpData);
+      return false;
+    }
+    // Check ook Inpak afzonderlijk
+    if(spData.Inpak && spData.Inpak.shift && localStorage.getItem('wml_overgedragen_Inpak') === vandaagISO()){
+      console.info('Concept-herstel geblokkeerd — shift al overgedragen vandaag voor Inpak');
+    }
 
     // SharePoint is de waarheid bij login — altijd overschrijven.
     Object.assign(formState, spData);
@@ -2238,8 +2273,16 @@ function handleOverdracht(afdeling){
     }
 
     // Bug-fix: na succesvolle overdracht lokale VERVOLGACTIES leegmaken.
-    // Anders verschijnen ze dubbel in Dagoverleg (lokaal + uit SharePoint via Flow 2).
     VERVOLGACTIES.length = 0;
+
+    // Sla een 'overgedragen'-vlag op in localStorage zodat de app na een
+    // refresh NIET de oude concept-data herstelt via Flow 7.
+    // Formaat: wml_overgedragen_<afdeling> = ISO-datum van vandaag
+    try {
+      localStorage.setItem('wml_overgedragen_' + afdeling, vandaagISO());
+      // Verwijder ook de lokale shift-cache zodat er een schone lei is
+      localStorage.removeItem('wml_data_' + (INGELOGD ? INGELOGD.naam.toLowerCase() : ''));
+    } catch(e){}
 
     if(GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling].length>0) verplaatsNaarArchief(afdeling, GESCHIEDENIS[afdeling][0]);
     GESCHIEDENIS[afdeling] = [fs];
@@ -2465,46 +2508,151 @@ function printShiftRapport(){
 
 
 function bouwShiftDetailHtml(s){
-  if(!s) return '<p class="text-sm text-muted italic">Geen gedetailleerde data beschikbaar voor deze shift — dit voorbeeld dateert van vóór de gedigitaliseerde rapportage.</p>';
-  const lijnTotalenTekst = Object.keys(s.lijnen).map(function(lijn){
-    const t = s.lijnen[lijn].afwijkingen.reduce(function(acc,a){ acc.waste+=Number(a.wasteKg)||0; acc.rework+=Number(a.reworkKg)||0; acc.stilstand+=Number(a.stilstandMin)||0; return acc; },{waste:0,rework:0,stilstand:0});
-    const status = s.lijnen[lijn].schoonmaakStatus;
-    return lijn+': '+t.waste+'kg waste, '+t.rework+'kg rework, '+t.stilstand+'min stilstand'+(status?' · 5S: '+status:'');
-  }).join(' · ');
-  const rijen = [];
-  Object.keys(s.lijnen).forEach(function(lijn){
-    s.lijnen[lijn].afwijkingen.forEach(function(a){
-      const extra = a.extraWerkMin ? ' · Extra werk '+a.extraWerkMin+'min' : '';
-      rijen.push('<div class="flex items-center gap-2 py-1.5 border-t border-border text-xs flex-wrap"><span class="font-mono-num text-[10px] bg-surface-container px-1.5 py-0.5 rounded">'+lijn+'</span> '+esc(a.omschrijving)+extra+' <span class="escalatie-badge escalatie-'+a.escalatieniveau+'">'+a.escalatieniveau+'</span></div>');
+  if(!s) return '<p class="text-sm text-muted italic">Geen data beschikbaar voor deze shift.</p>';
+
+  function kpiBlok(label, waarde, eenheid, bg){
+    if(!waarde) return '';
+    return '<div style="text-align:center;padding:5px 9px;background:'+(bg||'var(--tw-bg-opacity,#F5F0E8)')+';border-radius:6px;min-width:56px;display:inline-block;margin-right:5px">'
+      +'<div style="font-size:9px;text-transform:uppercase;color:#6B6860;font-weight:600;line-height:1.2">'+label+'</div>'
+      +'<div style="font-size:14px;font-weight:700;font-family:\'IBM Plex Mono\',monospace;line-height:1.3">'+waarde+'<span style="font-size:10px;font-weight:400;color:#6B6860">'+eenheid+'</span></div>'
+      +'</div>';
+  }
+  function labelRij(label, waarde){
+    if(!waarde) return '';
+    return '<tr><td style="width:140px;font-size:10px;font-weight:700;color:#6B6860;text-transform:uppercase;padding:3px 10px 3px 0;vertical-align:top;white-space:nowrap;letter-spacing:.04em">'+label+'</td>'
+      +'<td style="font-size:12px;padding:3px 0;vertical-align:top">'+esc(waarde)+'</td></tr>';
+  }
+  function sectieHeader(titel){
+    return '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1C2D4A;border-bottom:2px solid #1C2D4A;padding-bottom:3px;margin:18px 0 10px">' + titel + '</div>';
+  }
+
+  let html = '';
+
+  // Shift-header
+  html += '<div style="background:#F5F0E8;border:1px solid #DDD8CE;border-radius:7px;padding:10px 14px;margin-bottom:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+    +'<div>'
+    +'<div style="font-size:15px;font-weight:700;color:#1C2D4A">'+esc(s.datum||'')+' &middot; '+esc(s.shift||'')+' Shift</div>'
+    +'<div style="font-size:11px;color:#6B6860;margin-top:3px">Teamleider: <b>'+esc(s.teamleider||s.overgedragenDoor||'–')+'</b>'
+    +(s.overgedragenDoor?' &middot; Overgedragen door: <b>'+esc(s.overgedragenDoor)+'</b>':'')+' om <b>'+esc(s.overgedragenOp||'–')+'</b></div>'
+    +'<div style="font-size:11px;color:#6B6860;margin-top:1px">'+(s.gembaAfgestemd?'✓ Gemba afgestemd':'✗ Gemba niet afgestemd')
+    +' &middot; Rondes: <b>'+((s.rondeMomenten||[]).join(', ')||'–')+'</b></div>'
+    +'</div>'
+    +'<span style="background:#F4E5B2;color:#6B5010;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;text-transform:uppercase;white-space:nowrap">'+esc(s.status||'Overgedragen')+'</span>'
+    +'</div>'
+    +(s.personeleBezetting?'<div style="margin-top:6px;font-size:12px"><b>Bezetting:</b> '+esc(s.personeleBezetting)+'</div>':'')
+    +'</div>';
+
+  // Productie-afwijkingen per lijn
+  const lijnen = s.lijnen || {};
+  const heeftLijnData = Object.keys(lijnen).some(function(l){ return (lijnen[l].afwijkingen||[]).length > 0; });
+  if(heeftLijnData){
+    html += sectieHeader('Productie-afwijkingen per lijn');
+    Object.keys(lijnen).forEach(function(lijn){
+      const afw = lijnen[lijn].afwijkingen||[];
+      if(!afw.length) return;
+      const totW  = afw.reduce(function(n,a){return n+(a.wasteKg||0);},0);
+      const totR  = afw.reduce(function(n,a){return n+(a.reworkKg||0);},0);
+      const totS  = afw.reduce(function(n,a){return n+(a.stilstandMin||0);},0);
+      const totE  = afw.reduce(function(n,a){return n+(a.extraWerkMin||0);},0);
+      const kritiek = afw.some(function(a){return a.escalatieniveau==='Kritiek';});
+      html += '<div style="margin-bottom:10px;border:1px solid #DDD8CE;border-top:3px solid '+(kritiek?'#C0392B':'#1C2D4A')+';border-radius:5px;overflow:hidden">'
+        +'<div style="background:#F5F0E8;padding:7px 12px;display:flex;justify-content:space-between;align-items:center">'
+        +'<span style="font-size:13px;font-weight:700;color:#1C2D4A">'+esc(lijn)+'</span>'
+        +'<div>'
+        +kpiBlok('Waste', totW||null,'kg','#FDECEA')
+        +kpiBlok('Rework',totR||null,'kg','#FEF3C7')
+        +kpiBlok('Stilstand',totS||null,'min','#DBEAFE')
+        +(totE?kpiBlok('Extra',totE,'min','#EDE9FE'):'')
+        +'</div></div>';
+      afw.forEach(function(a, i){
+        const esKl = a.escalatieniveau==='Kritiek'?'#C0392B':a.escalatieniveau==='Aandachtspunt'?'#D97706':'#E8E2D8';
+        const esFg = a.escalatieniveau==='Kritiek'||a.escalatieniveau==='Aandachtspunt'?'#fff':'#6B6860';
+        html += '<div style="padding:9px 12px;'+(i>0?'border-top:1px solid #EDE7DC':'')+'">'
+          +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">'
+          +'<span style="font-size:13px;font-weight:700">'+esc(a.omschrijving||'')+'</span>'
+          +'<span style="font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:20px;background:'+esKl+';color:'+esFg+';margin-left:6px;white-space:nowrap">'+esc(a.escalatieniveau||'Routinematig')+'</span>'
+          +'</div>'
+          +'<table style="width:100%;border-collapse:collapse">'
+          +labelRij('Effect / Impact', a.impact)
+          +labelRij('Oorzaak (root cause)', a.oorzaak)
+          +labelRij('Corrigerende maatregel', a.correctief)
+          +labelRij('Preventieve maatregel', a.preventief)
+          +labelRij('Vervolgactie', a.vervolgactie!=='Geen'?a.vervolgactie:'')
+          +'</table>'
+          +'</div>';
+      });
+      html += '</div>';
     });
-  });
-  s.veiligheid.forEach(function(v){
-    const isPlanning = v.categorie==='Planning';
-    rijen.push('<div class="py-1.5 border-t border-border text-xs"><div class="flex items-center gap-2 flex-wrap">'+(v.vreemdVoorwerp?'<span class="prioriteit-badge prioriteit-Hoog">Vreemd voorwerp</span>':'')+'<span class="font-mono-num text-[10px] bg-surface-container px-1.5 py-0.5 rounded">'+v.categorie+'</span> '+esc(v.omschrijving)+(isPlanning?' <span class="mededeling-tag">Mededeling</span>':' <span class="escalatie-badge escalatie-'+v.escalatieniveau+'">'+v.escalatieniveau+'</span>')+'</div>'
-      + (v.foto ? '<img src="'+v.foto+'" class="rounded border border-border max-h-20 mt-1.5 block">' : '')
-      + '</div>');
-  });
-  // Defensief op s.blokkades/s.eWegingen — oudere Archief-snapshots van vóór deze velden bestaan nog niet.
-  (s.blokkades||[]).forEach(function(b){
-    rijen.push('<div class="py-1.5 border-t border-border text-xs"><div class="flex items-center gap-2 flex-wrap"><span class="prioriteit-badge prioriteit-Hoog">'+esc(b.type)+'</span> '+esc(b.artikel)+' <span class="font-mono-num text-[10px] text-muted">('+esc(b.batchTht)+')</span> <span class="escalatie-badge '+(b.status==='Actief'?'escalatie-Kritiek':'escalatie-Routinematig')+'">'+b.status+'</span></div>'
-      + (b.foto ? '<img src="'+b.foto+'" class="rounded border border-border max-h-20 mt-1.5 block">' : '')
-      + '</div>');
-  });
-  (s.eWegingen||[]).forEach(function(e){
-    rijen.push('<div class="py-1.5 border-t border-border text-xs flex items-center gap-2 flex-wrap"><span class="text-[9.5px] font-bold text-white px-2 py-0.5 rounded-full uppercase" style="background:#1D4ED8">'+esc(e.soortUitstoot)+'</span> '+esc(e.artikelBatch)+' <span class="font-mono-num text-[10px] text-muted">('+e.lijn+' · '+esc(e.tijdvak)+')</span></div>');
-  });
-  return '<p class="text-xs text-muted mb-3">'+s.datum+' · '+s.shift+' · '+esc(s.teamleider||'(geen naam ingevuld)')+'</p>'
-    + '<div class="text-sm">'
-    + '<div class="py-1.5 text-xs">Overgedragen door <b>'+esc(s.overgedragenDoor)+'</b> · '+s.overgedragenOp
-    +   (s.gembaAfgestemd ? ' <span class="escalatie-badge escalatie-Routinematig">✓ Gemba afgestemd</span>' : '') + '</div>'
-    + '<div class="py-1.5 border-t border-border text-xs text-muted">'+lijnTotalenTekst+'</div>'
-    + (s.personeleBezetting ? '<div class="py-1.5 border-t border-border text-xs"><b>Personele bezetting:</b> '+esc(s.personeleBezetting)+'</div>' : '')
-    + (rijen.length ? rijen.join('') : '<div class="py-1.5 border-t border-border text-xs text-muted italic">Geen afwijkingen of meldingen gelogd.</div>')
-    + (s.algemenePuntenDagoverleg ? '<div class="bg-note-pale rounded p-2.5 mt-3 text-xs"><b>Algemene punten Dagoverleg:</b> '+esc(s.algemenePuntenDagoverleg)+'</div>' : '')
-    + (s.actiesVolgendeShift ? '<div class="bg-surface-container-low rounded p-2.5 mt-3 text-xs"><b>Voor de volgende shift:</b> '+esc(s.actiesVolgendeShift)+'</div>' : '')
-    + (s.notificaties && s.notificaties.length ? '<div class="text-[10.5px] text-info mt-2">📧 '+s.notificaties.length+' notificatie(s) verstuurd bij overdracht (zie console)</div>' : '')
-    + '</div>';
+  }
+
+  // Veiligheid
+  const heeftVeiligheid = (s.veiligheid||[]).some(function(v){return v.categorie!=='Planning';});
+  if(heeftVeiligheid){
+    html += sectieHeader('Veiligheid · Voedselveiligheid · LOTOTO');
+    (s.veiligheid||[]).forEach(function(v){
+      if(v.categorie==='Planning') return;
+      const kl = v.escalatieniveau==='Kritiek'?'#C0392B':v.escalatieniveau==='Aandachtspunt'?'#D97706':'#6D28D9';
+      html += '<div style="margin-bottom:8px;padding:9px 12px;border-left:3px solid '+kl+';background:#FDFAF4;border-radius:0 5px 5px 0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">'
+        +'<span style="font-size:13px;font-weight:700">'+esc(v.omschrijving||'')+'</span>'
+        +'<div style="display:flex;gap:4px;margin-left:6px;flex-shrink:0">'
+        +(v.categorie?'<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:'+kl+';color:#fff;text-transform:uppercase">'+esc(v.categorie)+'</span>':'')
+        +(v.escalatieniveau&&v.escalatieniveau!=='Routinematig'?'<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#FEF3C7;color:#92400E;text-transform:uppercase">'+esc(v.escalatieniveau)+'</span>':'')
+        +'</div></div>'
+        +'<table style="width:100%;border-collapse:collapse">'
+        +labelRij('Effect / Impact', v.impact)
+        +labelRij('Oorzaak', v.oorzaak)
+        +labelRij('Corrigerend', v.correctief)
+        +labelRij('Preventief', v.preventief)
+        +'</table>'
+        +(v.foto?'<img src="'+v.foto+'" style="max-width:180px;max-height:130px;border-radius:4px;margin-top:6px;border:1px solid #DDD8CE;display:block">':'')
+        +'</div>';
+    });
+  }
+
+  // Blokkades
+  if((s.blokkades||[]).length){
+    html += sectieHeader('Kwaliteit (QA) · Blokkades');
+    (s.blokkades||[]).forEach(function(b){
+      html += '<div style="margin-bottom:8px;padding:9px 12px;border-left:3px solid #C0392B;background:#FDECEA;border-radius:0 5px 5px 0">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">'
+        +'<span style="font-size:13px;font-weight:700">'+esc(b.artikel||b.type||'Blokkade')+'</span>'
+        +'<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:#C0392B;color:#fff;text-transform:uppercase">'+esc(b.status||'Actief')+'</span>'
+        +'</div>'
+        +'<table style="width:100%;border-collapse:collapse">'
+        +labelRij('Type', b.type)
+        +labelRij('Batch / THT', b.batchTht)
+        +labelRij('Locatie', b.locatie)
+        +labelRij('Reden', b.reden)
+        +'</table>'
+        +(b.foto?'<img src="'+b.foto+'" style="max-width:180px;max-height:130px;border-radius:4px;margin-top:6px;border:1px solid #ECA3A0;display:block">':'')
+        +'</div>';
+    });
+  }
+
+  // Planning-mededelingen
+  const planningItems = (s.veiligheid||[]).filter(function(v){return v.categorie==='Planning';});
+  if(planningItems.length){
+    html += sectieHeader('Mededelingen (Planning)');
+    planningItems.forEach(function(v){
+      html += '<div style="margin-bottom:6px;padding:8px 10px;background:#EDE9FE;border-left:3px solid #6D28D9;border-radius:0 5px 5px 0;font-size:12px">'+esc(v.omschrijving)+'</div>';
+    });
+  }
+
+  // Dagoverleg + acties
+  if(s.algemenePuntenDagoverleg){
+    html += sectieHeader('Algemene punten dagoverleg');
+    html += '<div style="padding:9px 12px;background:#F0EAF8;border-left:3px solid #6D28D9;border-radius:0 5px 5px 0;font-size:12px">'+esc(s.algemenePuntenDagoverleg)+'</div>';
+  }
+  if(s.actiesVolgendeShift){
+    html += sectieHeader('Acties / informatie voor de volgende shift');
+    html += '<div style="padding:9px 12px;background:#F5F0E8;border-left:3px solid #B8963A;border-radius:0 5px 5px 0;font-size:12px">'+esc(s.actiesVolgendeShift)+'</div>';
+  }
+
+  return html;
 }
+
 // Converteert een SharePoint ShiftRapporten-item + Afwijkingen-array naar het interne
 // shift-snapshot-formaat dat bouwShiftDetailHtml() verwacht.
 function spResponseNaarShiftSnapshot(spShift, spAfwijkingen){
@@ -2667,6 +2815,42 @@ function renderGeschiedenis(){
   ARCHIEF.forEach(function(r, idx){ items.push({type:'archief', afdeling:r.afdeling, datum:r.datum, shift:r.shift, tl:r.tl, status:r.status, op:r.afgeslotenOp, snapshot:r.snapshot, archiefIdx:idx}); });
 
   const iconPerShift = {Ochtend:'wb_sunny', Middag:'wb_sunny', Avond:'wb_twilight', Nacht:'bedtime'};
+
+  // Als lokale geschiedenis leeg is EN Flow 3 beschikbaar → laad uit SharePoint
+  if(items.length === 0 && FLOW_URLS.getVorigeShift){
+    document.getElementById('geschiedenis-lijst').innerHTML =
+      '<p class="text-sm text-muted flex items-center gap-2"><span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span> Geschiedenis laden uit SharePoint...</p>';
+
+    Promise.all(['Productie','Inpak'].map(function(afd){
+      return fetch(FLOW_URLS.getVorigeShift, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({afdeling: afd})
+      }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+    })).then(function(results){
+      results.forEach(function(data, i){
+        const afd = i===0?'Productie':'Inpak';
+        if(data && data.shift){
+          const snap = spResponseNaarShiftSnapshot(data.shift, data.afwijkingen||[]);
+          GESCHIEDENIS[afd] = [snap];
+        }
+      });
+      renderGeschiedenisUI(); // herrender met SP-data
+    });
+    return;
+  }
+
+  renderGeschiedenisUI();
+}
+
+function renderGeschiedenisUI(){
+  const items = [];
+  ['Productie','Inpak'].forEach(function(afdeling){
+    const s = GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling][0];
+    if(s) items.push({type:'huidig', afdeling:afdeling, datum:s.datum, shift:s.shift, tl:s.overgedragenDoor, status:'Overgedragen', op:s.overgedragenOp, snapshot:s});
+  });
+  ARCHIEF.forEach(function(r, idx){ items.push({type:'archief', afdeling:r.afdeling, datum:r.datum, shift:r.shift, tl:r.tl, status:r.status, op:r.afgeslotenOp, snapshot:r.snapshot, archiefIdx:idx}); });
+  const iconPerShift = {Ochtend:'wb_sunny', Middag:'wb_sunny', Avond:'wb_twilight', Nacht:'bedtime'};
+
   document.getElementById('geschiedenis-lijst').innerHTML = items.map(function(it){
     const isHuidig = it.type==='huidig';
     const openFn = isHuidig ? "openVorigeShiftModal('"+it.afdeling+"')" : "openArchiefDetail("+it.archiefIdx+")";
@@ -2681,16 +2865,16 @@ function renderGeschiedenis(){
       + '<div class="text-right"><p class="text-[10px] text-muted uppercase">Door</p><p class="font-mono-num text-xs">'+esc((it.tl||'—').toUpperCase())+' · '+it.op+'</p></div>'
       + '<button class="px-3 py-1.5 bg-paper border border-border rounded-lg text-xs hover:bg-surface-container transition-colors flex items-center gap-1.5" onclick="'+openFn+'"><span>Bekijk rapport</span><span class="material-symbols-outlined text-[16px]">open_in_new</span></button>'
       + '</div></div></div>';
-  }).join('') || '<p class="text-sm text-muted italic">Nog geen geschiedenis.</p>';
+  }).join('') || '<p class="text-sm text-muted italic">Nog geen overdrachten gevonden.</p>';
 
   const kritiekeItems = [];
   ['Productie','Inpak'].forEach(function(afdeling){
     const s = GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling][0];
     if(!s) return;
-    Object.keys(s.lijnen).forEach(function(lijn){
-      s.lijnen[lijn].afwijkingen.forEach(function(a){ if(a.escalatieniveau==='Kritiek') kritiekeItems.push({titel:a.omschrijving, meta:afdeling+' · '+lijn+' · '+s.datum}); });
+    Object.keys(s.lijnen||{}).forEach(function(lijn){
+      (s.lijnen[lijn].afwijkingen||[]).forEach(function(a){ if(a.escalatieniveau==='Kritiek') kritiekeItems.push({titel:a.omschrijving, meta:afdeling+' · '+lijn+' · '+s.datum}); });
     });
-    s.veiligheid.forEach(function(v){ if(v.escalatieniveau==='Kritiek') kritiekeItems.push({titel:v.omschrijving, meta:afdeling+' · '+v.categorie+' · '+s.datum}); });
+    (s.veiligheid||[]).forEach(function(v){ if(v.escalatieniveau==='Kritiek') kritiekeItems.push({titel:v.omschrijving, meta:afdeling+' · '+v.categorie+' · '+s.datum}); });
   });
   document.getElementById('geschiedenis-kritiek').innerHTML = kritiekeItems.map(function(k){
     return '<div class="p-3"><p class="text-xs font-bold">'+esc(k.titel)+'</p><p class="text-[10.5px] text-muted mt-0.5">'+k.meta+'</p></div>';
@@ -4104,6 +4288,9 @@ document.getElementById('nf-vervolgactie').innerHTML = CONFIG.vervolgactieRoutes
 });
 toggleLijnVeld();
 toggleCategorieVelden();
+
+// Schoon verouderde overdracht-vlaggen op (zodat vandaag niet geblokkeerd is door gisteren)
+schoonOverdrachtVlaggenOp();
 
 // Herstel opgeslagen Bootstrap-URL uit localStorage
 laadOpgeslagenFlowUrls();
