@@ -1457,18 +1457,33 @@ async function laadConceptVanSharePoint(naam){
     const data = await resp.json();
     if(!data.gevonden || !data.conceptData) return false;
 
-    const spData = JSON.parse(data.conceptData);
+    // conceptData kan een string zijn (als de flow het als tekst terugstuurt)
+    // of al een object (als Power Automate het automatisch parsed) — beide afvangen.
+    const spData = typeof data.conceptData === 'string'
+      ? JSON.parse(data.conceptData)
+      : data.conceptData;
     if(spData.Productie && spData.Productie.datum !== vandaagISO()) return false;
 
     // SharePoint is de waarheid bij login — altijd overschrijven.
-    // Reden: meerdere apparaten kunnen onafhankelijk data hebben ingevoerd;
-    // SP heeft altijd de laatste gesynchroniseerde versie van de actieve gebruiker.
-    // Lokale data is alleen een fallback als SP niet bereikbaar is.
     Object.assign(formState, spData);
-    console.info('SP-data geladen voor', naam, '— lokale data overschreven.');
+
+    // Herstel fotos als beschikbaar
+    if(data.conceptFotos){
+      try {
+        const fotos = typeof data.conceptFotos === 'string'
+          ? JSON.parse(data.conceptFotos)
+          : data.conceptFotos;
+        if(fotos && typeof fotos === 'object' && Object.keys(fotos).length > 0){
+          herstelFotosInFormState(fotos);
+          console.info('Fotos hersteld:', Object.keys(fotos).length);
+        }
+      } catch(fe){ console.warn('Fotos herstellen mislukt:', fe.message); }
+    }
+
+    console.info('SP-data geladen voor', naam, '— formState bijgewerkt.');
     return true;
   } catch(e){
-    console.warn('Concept laden van SharePoint mislukt:', e.message);
+    console.warn('Concept laden van SharePoint mislukt:', e.message, e);
     return false;
   }
 }
