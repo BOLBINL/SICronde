@@ -581,7 +581,10 @@ tailwind.config = {
       <button class="text-muted hover:text-ink text-xl leading-none" onclick="closeModal('modal-shift-detail')">✕</button>
     </div>
     <div class="p-modal-padding overflow-y-auto" id="shift-detail-body"></div>
-    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-end shrink-0">
+    <div class="p-modal-padding bg-surface-container border-t border-border flex justify-between items-center shrink-0">
+      <button onclick="printShiftRapport()" class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 active:opacity-75" style="background:#1C2D4A">
+        <span class="material-symbols-outlined text-[18px]">print</span> PDF / Printen
+      </button>
       <button class="px-5 py-2 border border-border text-on-surface-variant text-label-ui rounded-lg hover:bg-surface-variant/50 transition-colors" onclick="closeModal('modal-shift-detail')">Sluiten</button>
     </div>
   </div>
@@ -909,6 +912,7 @@ const CONFIG = {
 // ─────────────────────────────────────────────────────────────────────────
 const IT_BOOTSTRAP_URL = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — Bootstrap Config Ophalen
 const IT_VALIDATE_URL  = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — Gebruiker Valideren
+
 
 const FLOW_URLS = {
   bootstrap:       IT_BOOTSTRAP_URL,
@@ -2277,6 +2281,189 @@ function telKritiek(s){
 }
 
 // ============ SHIFT-DETAIL (gedeeld: Vorige shift + Geschiedenis) ============
+
+// ── SHIFT RAPPORT AFDRUKKEN / PDF ────────────────────────────────────────
+let _printSnapshot = null;
+
+function printShiftRapport(){
+  const s = _printSnapshot;
+  if(!s){ alert('Geen shift-data beschikbaar.'); return; }
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+  function e(t){ return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function badge(tekst, kleur, bg){
+    return '<span style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 10px;border-radius:20px;background:'+(bg||'#E8E2D8')+';color:'+(kleur||'#6B6860')+';letter-spacing:.03em">'+e(tekst)+'</span>';
+  }
+  function kpiBadge(label, waarde, eenheid, kleur){
+    if(!waarde) return '';
+    return '<div style="text-align:center;padding:6px 10px;background:'+(kleur||'#F5F0E8')+';border-radius:6px;min-width:60px">'
+      +'<div style="font-size:9px;text-transform:uppercase;color:#6B6860;font-weight:600;margin-bottom:2px">'+label+'</div>'
+      +'<div style="font-size:15px;font-weight:700;font-family:monospace;color:#1A1A18">'+waarde+'<span style="font-size:10px;font-weight:400;color:#6B6860">'+eenheid+'</span></div>'
+      +'</div>';
+  }
+  function labelRij(label, waarde){
+    if(!waarde) return '';
+    return '<tr>'
+      +'<td style="width:130px;font-size:10px;font-weight:600;color:#6B6860;text-transform:uppercase;padding:4px 10px 4px 0;vertical-align:top;white-space:nowrap">'+label+'</td>'
+      +'<td style="font-size:12px;padding:4px 0;vertical-align:top">'+e(waarde)+'</td>'
+      +'</tr>';
+  }
+  function sectie(titel, inhoud){
+    if(!inhoud) return '';
+    return '<div style="margin-bottom:20px;break-inside:avoid">'
+      +'<h3 style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1C2D4A;'
+      +'border-bottom:2px solid #1C2D4A;padding-bottom:4px;margin-bottom:12px">'+titel+'</h3>'
+      +inhoud+'</div>';
+  }
+
+  // ── Productie-afwijkingen (per lijn in een kaart) ─────────────────────
+  let lijnenHtml = '';
+  const lijnen = s.lijnen || {};
+  Object.keys(lijnen).forEach(function(lijn){
+    const afw = (lijnen[lijn].afwijkingen||[]);
+    if(!afw.length) return;
+
+    const totWaste    = afw.reduce(function(n,a){return n+(a.wasteKg||0);},0);
+    const totRework   = afw.reduce(function(n,a){return n+(a.reworkKg||0);},0);
+    const totStil     = afw.reduce(function(n,a){return n+(a.stilstandMin||0);},0);
+    const totExtra    = afw.reduce(function(n,a){return n+(a.extraWerkMin||0);},0);
+    const heeftKritiek = afw.some(function(a){return a.escalatieniveau==='Kritiek';});
+    const borderKleur  = heeftKritiek ? '#C0392B' : '#1C2D4A';
+
+    // Kaart-header
+    lijnenHtml += '<div style="margin-bottom:14px;border:1px solid #DDD8CE;border-top:3px solid '+borderKleur+';border-radius:6px;overflow:hidden;break-inside:avoid">'
+      // Lijn-naam balk
+      +'<div style="background:#F5F0E8;padding:8px 12px;display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-size:13px;font-weight:700;color:#1C2D4A">'+e(lijn)+'</span>'
+      +'<div style="display:flex;gap:6px">'
+      +kpiBadge('Waste', totWaste||null, 'kg', totWaste?'#FDECEA':'')
+      +kpiBadge('Rework', totRework||null, 'kg', totRework?'#FEF3C7':'')
+      +kpiBadge('Stilstand', totStil||null, 'min', totStil?'#DBEAFE':'')
+      +(totExtra ? kpiBadge('Extra werk', totExtra, 'min', '#EDE9FE') : '')
+      +'</div></div>';
+
+    // Afwijkingen
+    afw.forEach(function(a, i){
+      const esKl = a.escalatieniveau==='Kritiek'?'#C0392B':a.escalatieniveau==='Aandachtspunt'?'#D97706':'#6B6860';
+      const esBg = a.escalatieniveau==='Kritiek'?'#FDECEA':a.escalatieniveau==='Aandachtspunt'?'#FEF3C7':'#F5F0E8';
+      lijnenHtml += '<div style="padding:10px 12px;'+(i>0?'border-top:1px solid #EDE7DC':'')+'">'
+        +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">'
+        +'<p style="font-size:13px;font-weight:700;margin:0;flex:1">'+e(a.omschrijving||'')+'</p>'
+        +'<span style="margin-left:8px;white-space:nowrap">'+badge(a.escalatieniveau||'Routinematig', esKl==='#6B6860'?'#6B6860':'#fff', esKl==='#6B6860'?'#E8E2D8':esKl)+'</span>'
+        +'</div>'
+        +'<table style="width:100%;border-collapse:collapse">'
+        +labelRij('Effect / Impact', a.impact)
+        +labelRij('Oorzaak (root cause)', a.oorzaak)
+        +labelRij('Corrigerende maatregel', a.correctief)
+        +labelRij('Preventieve maatregel', a.preventief)
+        +labelRij('Vervolgactie', a.vervolgactie!=='Geen'?a.vervolgactie:'')
+        +'</table>'
+        +'</div>';
+    });
+    lijnenHtml += '</div>';
+  });
+
+  // ── Veiligheid / Voedselveiligheid / LOTOTO ──────────────────────────
+  let vHtml = '';
+  (s.veiligheid||[]).forEach(function(v, i){
+    const kl = v.escalatieniveau==='Kritiek'?'#C0392B':v.escalatieniveau==='Aandachtspunt'?'#D97706':v.categorie==='Planning'?'#6D28D9':'#1C2D4A';
+    vHtml += '<div style="margin-bottom:12px;border:1px solid #DDD8CE;border-left:3px solid '+kl+';border-radius:0 6px 6px 0;padding:10px 12px;break-inside:avoid">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+      +'<p style="font-size:13px;font-weight:700;margin:0;flex:1">'+e(v.omschrijving||'')+'</p>'
+      +'<div style="display:flex;gap:4px;margin-left:8px">'
+      +(v.categorie?badge(v.categorie,'#fff',kl):'')
+      +(v.escalatieniveau&&v.escalatieniveau!=='Routinematig'?badge(v.escalatieniveau,'#92400E','#FEF3C7'):'')
+      +'</div></div>'
+      +'<table style="width:100%;border-collapse:collapse">'
+      +labelRij('Effect / Impact', v.impact)
+      +labelRij('Oorzaak', v.oorzaak)
+      +labelRij('Corrigerend', v.correctief)
+      +labelRij('Preventief', v.preventief)
+      +'</table>'
+      +(v.foto?'<img src="'+v.foto+'" style="max-width:240px;max-height:180px;border-radius:4px;margin-top:8px;border:1px solid #DDD8CE;display:block">':'')
+      +'</div>';
+  });
+
+  // ── Blokkades ────────────────────────────────────────────────────────
+  let bHtml = '';
+  (s.blokkades||[]).forEach(function(b){
+    bHtml += '<div style="margin-bottom:12px;border:1px solid #ECA3A0;border-left:3px solid #C0392B;border-radius:0 6px 6px 0;padding:10px 12px;background:#FDECEA;break-inside:avoid">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+      +'<p style="font-size:13px;font-weight:700;margin:0">'+e(b.artikel||b.type||'Blokkade')+'</p>'
+      +badge(b.status||'Actief','#fff','#C0392B')
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse">'
+      +labelRij('Type', b.type)
+      +labelRij('Batch / THT', b.batchTht)
+      +labelRij('Hoeveelheid', b.hoeveelheid)
+      +labelRij('Locatie', b.locatie)
+      +labelRij('Reden', b.reden)
+      +'</table>'
+      +(b.foto?'<img src="'+b.foto+'" style="max-width:240px;max-height:180px;border-radius:4px;margin-top:8px;border:1px solid #ECA3A0;display:block">':'')
+      +'</div>';
+  });
+
+  const nu = new Date().toLocaleDateString('nl-NL',{day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  const html = '<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8">'
+    +'<title>Shift Rapport '+e(s.datum||'')+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:"IBM Plex Sans",sans-serif;color:#1A1A18;background:#fff;font-size:13px;line-height:1.55}'
+    +'@page{margin:16mm 14mm;size:A4}'
+    +'@media print{.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
+    +'.print-btn{position:fixed;top:14px;right:14px;background:#B8963A;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;z-index:999;box-shadow:0 2px 8px rgba(0,0,0,.2)}'
+    +'</style></head><body>'
+
+    +'<button class="no-print print-btn" onclick="window.print()">🖨 PDF opslaan / Afdrukken</button>'
+
+    // Header
+    +'<div style="background:#1C2D4A;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">'
+    +'<div style="display:flex;align-items:center;gap:10px">'
+    +'<div style="width:38px;height:38px;background:#B8963A;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">BI</div>'
+    +'<div><div style="font-size:15px;font-weight:700">WML Shift Rapportage</div><div style="font-size:10px;opacity:.7">Biscuit International · Broek op Langedijk</div></div>'
+    +'</div>'
+    +'<div style="text-align:right;font-size:11px;opacity:.8"><div>Afgedrukt: '+nu+'</div><div>Afdeling: '+e(s.afdeling||'')+'</div></div>'
+    +'</div>'
+
+    +'<div style="padding:0 20px 24px">'
+
+    // Shift-header kaart
+    +'<div style="background:#F5F0E8;border:1px solid #DDD8CE;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-start">'
+    +'<div><div style="font-size:18px;font-weight:700;color:#1C2D4A">'+e(s.datum||'')+'&nbsp;·&nbsp;'+e(s.shift||'')+' Shift</div>'
+    +'<div style="font-size:11px;color:#6B6860;margin-top:4px">Teamleider: <b>'+e(s.teamleider||s.overgedragenDoor||'–')+'</b> · Overgedragen door: <b>'+e(s.overgedragenDoor||'–')+'</b> om <b>'+e(s.overgedragenOp||'–')+'</b></div>'
+    +'<div style="font-size:11px;color:#6B6860;margin-top:2px">'+(s.gembaAfgestemd?'✓ Gemba afgestemd':'✗ Gemba niet afgestemd')+' · Rondes: <b>'+((s.rondeMomenten||[]).join(', ')||'–')+'</b></div>'
+    +(s.rondeReden?'<div style="font-size:11px;color:#6B6860;margin-top:2px">Reden niet gelopen: '+e(s.rondeReden)+'</div>':'')
+    +'</div>'
+    +'<span style="background:#F4E5B2;color:#6B5010;font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;text-transform:uppercase;white-space:nowrap;margin-top:2px">'+e(s.status||'Overgedragen')+'</span>'
+    +'</div>'
+
+    +(s.personeleBezetting ? sectie('Personele bezetting','<p style="font-size:13px;padding:8px 10px;background:#F5F0E8;border-radius:4px">'+e(s.personeleBezetting)+'</p>') : '')
+    +(lijnenHtml ? sectie('Productie-afwijkingen per lijn', lijnenHtml) : '<p style="font-size:12px;color:#6B6860;font-style:italic;margin-bottom:20px">Geen productie-afwijkingen gelogd.</p>')
+    +(vHtml ? sectie('Veiligheid · Voedselveiligheid · LOTOTO', vHtml) : '')
+    +(bHtml ? sectie('Kwaliteit (QA) · Blokkades', bHtml) : '')
+    +(s.algemenePuntenDagoverleg ? sectie('Algemene punten dagoverleg','<div style="font-size:13px;padding:10px 12px;background:#F0EAF8;border-left:3px solid #6D28D9;border-radius:0 4px 4px 0">'+e(s.algemenePuntenDagoverleg)+'</div>') : '')
+    +(s.actiesVolgendeShift ? sectie('Acties / informatie voor de volgende shift','<div style="font-size:13px;padding:10px 12px;background:#F5F0E8;border-left:3px solid #B8963A;border-radius:0 4px 4px 0">'+e(s.actiesVolgendeShift)+'</div>') : '')
+    +(s.voorbereiding ? sectie('Voorbereiding volgende shift','<p style="font-size:13px;padding:8px 10px;background:#F5F0E8;border-radius:4px">'+e(s.voorbereiding)+'</p>') : '')
+
+    // Footer
+    +'<div style="margin-top:28px;padding-top:10px;border-top:1px solid #DDD8CE;font-size:10px;color:#6B6860;display:flex;justify-content:space-between">'
+    +'<span>WML Shift Rapportage · Biscuit International · Broek op Langedijk</span>'
+    +'<span>BRCGS / IFS gecertificeerd · Vertrouwelijk document</span>'
+    +'</div>'
+
+    +'</div>'
+    +'<script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script>'
+    +'</body></html>';
+
+  const w = window.open('','_blank','width=960,height=1100');
+  if(!w){ alert('Pop-up geblokkeerd — sta pop-ups toe voor deze pagina.'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+
 function bouwShiftDetailHtml(s){
   if(!s) return '<p class="text-sm text-muted italic">Geen gedetailleerde data beschikbaar voor deze shift — dit voorbeeld dateert van vóór de gedigitaliseerde rapportage.</p>';
   const lijnTotalenTekst = Object.keys(s.lijnen).map(function(lijn){
@@ -2436,6 +2623,7 @@ async function openVorigeShiftModal(afdeling){
         const data = await resp.json();
         if(data.shift){
           const snapshot = spResponseNaarShiftSnapshot(data.shift, data.afwijkingen || []);
+          _printSnapshot = snapshot;
           document.getElementById('shift-detail-body').innerHTML = bouwShiftDetailHtml(snapshot);
           return;
         } else {
@@ -2452,6 +2640,7 @@ async function openVorigeShiftModal(afdeling){
   // Fallback: in-memory GESCHIEDENIS (shiften die in deze sessie zijn overgedragen)
   const log = GESCHIEDENIS[afdeling];
   const s   = log && log[0];
+  _printSnapshot = s || null;
   document.getElementById('shift-detail-body').innerHTML = s
     ? bouwShiftDetailHtml(s)
     : '<p class="text-sm text-muted italic">Nog geen vorige shift overgedragen.'
