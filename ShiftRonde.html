@@ -421,12 +421,12 @@ tailwind.config = {
 <!-- Modal: Nieuwe/Bewerk afwijking -->
 <div class="modal-overlay" id="modal-nieuw">
   <div class="bg-paper rounded-xl w-full max-w-xl mt-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-    <div class="bg-primary text-on-primary px-modal-padding py-4 flex justify-between items-center shrink-0">
+    <div class="px-modal-padding py-4 flex justify-between items-center shrink-0" id="modal-nieuw-header" style="background:#1C2D4A; color:white">
       <div class="flex items-center gap-3">
-        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">report_problem</span>
+        <span class="material-symbols-outlined" id="modal-nieuw-icoon" style="font-variation-settings:'FILL' 1">report_problem</span>
         <h3 class="text-base font-bold" id="modal-nieuw-titel">Log Nieuwe Afwijking</h3>
       </div>
-      <button class="hover:bg-primary-container/30 p-1 rounded-full transition-colors" onclick="closeModal('modal-nieuw')"><span class="material-symbols-outlined">close</span></button>
+      <button class="hover:bg-white/20 p-1 rounded-full transition-colors" onclick="closeModal('modal-nieuw')"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="p-modal-padding overflow-y-auto space-y-6">
       <div class="grid grid-cols-2 gap-4">
@@ -893,13 +893,16 @@ const IT_VALIDATE_URL    = '';  // Flow 4 — WML Gebruiker Valideren
 // ═══════════════════════════════════════════════════════════════════════════
 
 const FLOW_URLS = {
-  bootstrap:       IT_BOOTSTRAP_URL,   // hardcoded
-  validateUser:    IT_VALIDATE_URL,    // hardcoded
-  // Onderstaande worden automatisch geladen via de bootstrap-flow uit ShiftConfig
+  bootstrap:       IT_BOOTSTRAP_URL,
+  validateUser:    IT_VALIDATE_URL,
   overdracht:      '',
   getDagoverleg:   '',
   getVorigeShift:  '',
-  configBijwerken: ''
+  configBijwerken: '',
+  // Concept-sync: slaat de lopende shift op in SharePoint zodat andere
+  // apparaten van dezelfde gebruiker dezelfde data zien.
+  conceptSync:     '',   // Flow 6 — Concept Shift Opslaan
+  getConceptShift: ''    // Flow 7 — Concept Shift Ophalen
 };
 
 // ── BOOTSTRAP: alle config + flow-URLs ophalen uit ShiftConfig ────────────
@@ -948,7 +951,9 @@ async function laadConfigViaBootstrap(){
           'FlowURL_VorigeShift':         'getVorigeShift',
           'FlowURL_ValideerGebruiker':   'validateUser',
           'FlowURL_ConfigBijwerken':     'configBijwerken',
-          'FlowURL_Bootstrap':           'bootstrap'
+          'FlowURL_Bootstrap':           'bootstrap',
+          'FlowURL_ConceptSync':         'conceptSync',
+          'FlowURL_GetConceptShift':     'getConceptShift'
         };
         if(urlMap[titel] && tekst) FLOW_URLS[urlMap[titel]] = tekst;
       }
@@ -1297,27 +1302,180 @@ function herstelShiftData(naam){
 
 // Automatisch opslaan na elke render van de Huidige Shift-pagina
 // (wordt aangeroepen vanuit renderHuidigeShift, zie verderop)
-function autoSaveNaRender(){ slaShiftDataOp(); }
+function autoSaveNaRender(){ slaShiftDataOp(); syncConceptThrottled(); }
+
+// ── CONCEPT-SYNC: lopende shift bewaren in SharePoint ─────────────────────
+// Gesynchroniseerd tussen apparaten via SharePoint (ConceptData-veld op
+// het ShiftRapporten-item). Throttled op 1x per minuut om de flow niet
+// te overbelasten bij elke keystroke.
+// ─────────────────────────────────────────────────────────────────────────
+let _conceptSyncTimeout = null;
+function syncConceptThrottled(){
+  if(!FLOW_URLS.conceptSync || !INGELOGD) return;
+  clearTimeout(_conceptSyncTimeout);
+  _conceptSyncTimeout = setTimeout(syncConceptNaarSharePoint, 60000); // 1 minuut debounce
+}
+
+// ── FOTO-COMPRESSIE ───────────────────────────────────────────────────────
+// Comprimeer een foto voor cross-device sync: max 800px breed, 70% JPEG.
+// Reduceert een telefoon-foto van ~3MB naar ~50-80KB — geschikt voor
+// SharePoint-tekstvelden en Power Automate HTTP-payloads.
+function comprimeerFoto(dataUrl, maxBreedte, kwaliteit){
+  maxBreedte = maxBreedte || 800;
+  kwaliteit  = kwaliteit  || 0.70;
+  return new Promise(function(resolve){
+    if(!dataUrl){ resolve(null); return; }
+    const img = new window.Image();
+    img.onload = function(){
+      const schaal  = Math.min(1, maxBreedte / img.width);
+      const canvas  = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * schaal);
+      canvas.height = Math.round(img.height * schaal);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', kwaliteit));
+    };
+    img.onerror = function(){ resolve(null); };
+    img.src = dataUrl;
+  });
+}
+
+// Verzamel alle foto's uit formState, comprimeer ze, en geef een
+// lookup-object terug: { 'Productie_veiligheid_0': 'data:image/jpeg;...' }
+async function verzamelEnComprimeerFotos(){
+  const fotos = {};
+  for(const afd of ['Productie','Inpak']){
+    const fs = formState[afd];
+    if(!fs) continue;
+    for(let i=0; i<(fs.veiligheid||[]).length; i++){
+      if(fs.veiligheid[i].foto){
+        fotos[afd+'_veiligheid_'+i] = await comprimeerFoto(fs.veiligheid[i].foto);
+      }
+    }
+    for(let i=0; i<(fs.blokkades||[]).length; i++){
+      if(fs.blokkades[i].foto){
+        fotos[afd+'_blokkade_'+i] = await comprimeerFoto(fs.blokkades[i].foto);
+      }
+    }
+  }
+  return fotos;
+}
+
+// Herstel foto's in formState vanuit het fotos-lookup-object
+function herstelFotosInFormState(fotos){
+  if(!fotos) return;
+  for(const sleutel of Object.keys(fotos)){
+    const delen  = sleutel.split('_');  // ['Productie','veiligheid','0']
+    const afd    = delen[0];
+    const type   = delen[1];
+    const idx    = parseInt(delen[2], 10);
+    if(!formState[afd]) continue;
+    if(type === 'veiligheid' && formState[afd].veiligheid[idx]){
+      formState[afd].veiligheid[idx].foto = fotos[sleutel];
+    }
+    if(type === 'blokkade'   && formState[afd].blokkades[idx]){
+      formState[afd].blokkades[idx].foto  = fotos[sleutel];
+    }
+  }
+}
+
+async function syncConceptNaarSharePoint(){
+  if(!FLOW_URLS.conceptSync || !INGELOGD) return;
+  try {
+    // Diepe kopie zonder foto-data (die gaan apart als gecomprimeerde versie)
+    const kopie = JSON.parse(JSON.stringify(formState));
+    ['Productie','Inpak'].forEach(function(afd){
+      if(!kopie[afd]) return;
+      (kopie[afd].veiligheid || []).forEach(function(v){ v.foto = null; });
+      (kopie[afd].blokkades  || []).forEach(function(b){ b.foto = null; });
+    });
+
+    // Comprimeer alle foto's (async — canvas doet het in de browser)
+    const fotos = await verzamelEnComprimeerFotos();
+    const aantalFotos = Object.keys(fotos).length;
+
+    await fetch(FLOW_URLS.conceptSync, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        gebruiker:    INGELOGD.naam,
+        afdeling:     huidigeAfdeling,
+        datum:        vandaagISO(),
+        shift:        formState[huidigeAfdeling].shift || bepaalShiftOpBasisVanTijd(),
+        conceptData:  JSON.stringify(kopie),
+        conceptFotos: JSON.stringify(fotos)  // gecomprimeerde fotos apart
+      })
+    });
+    console.info('Concept gesynchroniseerd naar SharePoint' + (aantalFotos ? ' incl. ' + aantalFotos + ' foto(s).' : '.'));
+  } catch(e){
+    console.warn('Concept-sync mislukt (geen verbinding?):', e.message);
+  }
+}
+
+async function laadConceptVanSharePoint(naam){
+  if(!FLOW_URLS.getConceptShift) return false;
+  try {
+    const resp = await fetch(FLOW_URLS.getConceptShift, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ gebruiker: naam, datum: vandaagISO() })
+    });
+    if(!resp.ok) return false;
+    const data = await resp.json();
+    if(!data.gevonden || !data.conceptData) return false;
+
+    const hersteld = JSON.parse(data.conceptData);
+    if(hersteld.Productie && hersteld.Productie.datum !== vandaagISO()) return false;
+
+    Object.assign(formState, hersteld);
+
+    // Herstel foto's als ze beschikbaar zijn
+    if(data.conceptFotos){
+      try {
+        const fotos = JSON.parse(data.conceptFotos);
+        herstelFotosInFormState(fotos);
+        const aantalFotos = Object.keys(fotos).length;
+        if(aantalFotos) console.info('Fotos hersteld:', aantalFotos);
+      } catch(fe){ console.warn('Fotos herstellen mislukt:', fe.message); }
+    }
+
+    console.info('Concept geladen van SharePoint voor:', naam);
+    return true;
+  } catch(e){
+    console.warn('Concept laden van SharePoint mislukt:', e.message);
+    return false;
+  }
+}
 
 // ── LOGIN FUNCTIES ─────────────────────────────────────────────────────────
 function volledigInloggen(gebruiker){
   INGELOGD = gebruiker;
   localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
 
-  // Probeer data van dezelfde gebruiker te herstellen
-  const hersteld = herstelShiftData(gebruiker.naam);
+  // Stap 1: probeer lokale data te herstellen (zelfde apparaat, snel)
+  const lokaalHersteld = herstelShiftData(gebruiker.naam);
 
   verbergLoginOverlay();
   renderTopbarLogin();
   renderHuidigeShift();
-
-  // Start de 10-minuten inactiviteits-timer
   resetAutoUitlogTimer();
 
-  if(hersteld){
+  if(lokaalHersteld){
     toonToast('✓ Je shift-data van vandaag is hersteld.');
+    return;
   }
-  console.info('Ingelogd als:', INGELOGD.naam, '—', INGELOGD.offline ? '(offline/demo)' : '(gevalideerd via ShiftConfig)');
+
+  // Stap 2: geen lokale data → probeer SharePoint (ander apparaat)
+  if(FLOW_URLS.getConceptShift){
+    toonToast('Controleren op data van ander apparaat...');
+    laadConceptVanSharePoint(gebruiker.naam).then(function(spHersteld){
+      if(spHersteld){
+        renderHuidigeShift();
+        toonToast('✓ Shift-data geladen vanuit SharePoint (ander apparaat).');
+      }
+    });
+  }
+  console.info('Ingelogd als:', INGELOGD.naam, INGELOGD.offline ? '(demo)' : '(gevalideerd)');
 }
 
 function toonLoginFout(tekst){
@@ -1732,7 +1890,8 @@ function renderHuidigeShift(){
         + '<p class="text-[10px] text-muted mt-0.5 flex items-center gap-1.5 flex-wrap"><span class="escalatie-badge escalatie-'+a.escalatieniveau+'">'+a.escalatieniveau+'</span><span>'+a.vervolgactie+'</span>'+(a.toegewezen?'<span>→ '+esc(a.toegewezen)+'</span>':'')+'</p>'
         + (chips.length ? '<p class="text-[10px] text-muted mt-1 font-mono-num">'+chips.join(' · ')+'</p>' : '')
         + '</div>'
-        + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink shrink-0" onclick="openBewerkAfwijking(\''+afdeling+'\',\''+lijn+'\','+idx+')">edit</span>'
+        + '<button class="icon-btn w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary-container active:opacity-70 transition-colors shrink-0 ml-1" onclick="openBewerkAfwijking(\''+afdeling+'\',\''+lijn+'\','+idx+')" title="Bewerken">'
+        + '<span class="material-symbols-outlined text-[18px] text-secondary">edit</span></button>'
         + '</div>';
     }).join('');
     return '<div class="bg-paper border border-border rounded-lg overflow-hidden flex flex-col">'
@@ -1767,7 +1926,8 @@ function renderHuidigeShift(){
       + '<p class="text-[10px] text-muted mt-0.5 flex items-center gap-1.5 flex-wrap"><span>'+v.categorie+'</span>'+(!isPlanning?'<span class="escalatie-badge escalatie-'+v.escalatieniveau+'">'+v.escalatieniveau+'</span>':'')+'<span>'+v.vervolgactie+'</span>'+(v.foto?'<span class="material-symbols-outlined text-[12px] text-secondary" title="Foto bijgevoegd">photo_camera</span>':'')+'</p>'
       + (v.foto ? '<img src="'+v.foto+'" class="rounded border border-border max-h-16 mt-1.5 block">' : '')
       + '</div>'
-      + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink shrink-0" onclick="openBewerkVeiligheid(\''+afdeling+'\','+idx+')">edit</span>'
+      + '<button class="icon-btn w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary-container active:opacity-70 transition-colors shrink-0 ml-1" onclick="openBewerkVeiligheid(\''+afdeling+'\','+idx+')" title="Bewerken">'
+      + '<span class="material-symbols-outlined text-[18px] text-secondary">edit</span></button>'
       + '</div>';
   }).join('') || '<p class="text-xs text-muted italic">Geen items gelogd.</p>';
   document.getElementById('shift-veiligheid').innerHTML = vgItems;
@@ -2356,6 +2516,12 @@ function resetModalVelden(){
   document.getElementById('nf-afwijking').placeholder='Wat is er gebeurd?';
   const fel = document.getElementById('nf-fout'); fel.classList.remove('show'); fel.classList.add('hidden'); fel.innerHTML='';
   document.getElementById('nf-verwijder-btn').style.display='none';
+  // Header terugzetten naar navy (nieuw-modus) en icoon naar report_problem
+  const header = document.getElementById('modal-nieuw-header');
+  const icoon = document.getElementById('modal-nieuw-icoon');
+  if(header) header.style.background = '#1C2D4A';
+  if(icoon) icoon.textContent = 'report_problem';
+  document.getElementById('modal-nieuw-titel').textContent = 'Log Nieuwe Afwijking';
   nfFotoDataUrl = null;
   renderFotoBox();
 }
@@ -2680,7 +2846,12 @@ function openBewerkAfwijking(afdeling, lijn, idx){
   const item = formState[afdeling].lijnen[lijn] && formState[afdeling].lijnen[lijn].afwijkingen[idx];
   if(!item){ console.warn('openBewerkAfwijking: item niet gevonden — ', afdeling, lijn, idx); return; }
   modalContext = {mode:'bewerken', afdeling:afdeling, type:'lijn', lijn:lijn, idx:idx};
-  document.getElementById('modal-nieuw-titel').textContent = 'Afwijking Bewerken';
+  // Bewerk-modus: goudkleurige header + potlood-icoon
+  const header = document.getElementById('modal-nieuw-header');
+  const icoon = document.getElementById('modal-nieuw-icoon');
+  if(header) header.style.background = '#B8963A';
+  if(icoon) icoon.textContent = 'edit';
+  document.getElementById('modal-nieuw-titel').textContent = 'Afwijking bewerken — ' + esc(lijn);
   document.getElementById('nf-categorie').value='Productie-afwijking';
   toggleLijnVeld();
   document.getElementById('nf-lijn').value = lijn;
@@ -2707,7 +2878,12 @@ function openBewerkVeiligheid(afdeling, idx){
   const item = formState[afdeling].veiligheid[idx];
   if(!item){ console.warn('openBewerkVeiligheid: item niet gevonden — ', afdeling, idx); return; }
   modalContext = {mode:'bewerken', afdeling:afdeling, type:'veiligheid', lijn:null, idx:idx};
-  document.getElementById('modal-nieuw-titel').textContent = 'Item Bewerken';
+  // Bewerk-modus: goudkleurige header
+  const header = document.getElementById('modal-nieuw-header');
+  const icoon = document.getElementById('modal-nieuw-icoon');
+  if(header) header.style.background = '#B8963A';
+  if(icoon) icoon.textContent = 'edit';
+  document.getElementById('modal-nieuw-titel').textContent = item.categorie + ' bewerken';
   document.getElementById('nf-categorie').value = item.categorie;
   toggleLijnVeld();
   document.getElementById('nf-afwijking').value = item.omschrijving;
@@ -3199,11 +3375,13 @@ function cfBadge(label, kleur){
 function renderConfigVerbinding(){
   const bootstrapOk = !!FLOW_URLS.bootstrap;
   const flowStatus = [
-    {label:'Flow 1 — Overdracht',        ok: !!FLOW_URLS.overdracht},
-    {label:'Flow 2 — Dagoverleg',         ok: !!FLOW_URLS.getDagoverleg},
-    {label:'Flow 3 — Vorige shift',       ok: !!FLOW_URLS.getVorigeShift},
-    {label:'Flow 4 — Gebruiker valideren',ok: !!FLOW_URLS.validateUser},
-    {label:'Flow 5 — Config bijwerken',   ok: !!FLOW_URLS.configBijwerken},
+    {label:'Flow 1 — Overdracht',         ok: !!FLOW_URLS.overdracht},
+    {label:'Flow 2 — Dagoverleg',          ok: !!FLOW_URLS.getDagoverleg},
+    {label:'Flow 3 — Vorige shift',        ok: !!FLOW_URLS.getVorigeShift},
+    {label:'Flow 4 — Gebruiker valideren', ok: !!FLOW_URLS.validateUser},
+    {label:'Flow 5 — Config bijwerken',    ok: !!FLOW_URLS.configBijwerken},
+    {label:'Flow 6 — Concept opslaan',     ok: !!FLOW_URLS.conceptSync},
+    {label:'Flow 7 — Concept ophalen',     ok: !!FLOW_URLS.getConceptShift},
   ];
   const html = '<div class="space-y-4">'
     + '<div class="space-y-1"><label class="text-metadata-caps text-muted uppercase block">Bootstrap-URL (Flow 0) <span class="text-danger">*</span></label>'
