@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>BIN BOL Production — Shift Rapportage</title>
+<title>WML Production — Shift Rapportage</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
@@ -118,7 +118,7 @@ tailwind.config = {
 
   /* Schoonmaak/5S knoppen per lijn: hogere touch-target op mobiel */
   @media (max-width: 640px) {
-    .schoonmaak-btn { min-height: 40px; font-size: 11px; }
+    .schoonmaak-btn { min-height: 48px !important; font-size: 12px !important; padding-top: 10px !important; padding-bottom: 10px !important; }
   }
 
   /* Tijdlijn op smal scherm: compacter maar leesbaar */
@@ -134,7 +134,7 @@ tailwind.config = {
 <body class="bg-background text-on-surface">
 
 <div id="demo-banner" class="text-white text-center text-[11px] py-1.5 px-3" style="background:#1C2D4A">
-  <b>Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
+  <b>WML Shift Rapportage — Biscuit International</b> · Data via Power Automate → SharePoint.
   Vul de Flow-URLs in via <b>Configuratie → Verbinding</b>.
 </div>
 
@@ -729,8 +729,14 @@ tailwind.config = {
           </select>
         </div>
         <div class="space-y-1">
-          <label class="text-metadata-caps text-muted uppercase">Geschatte hoeveelheid <span class="normal-case text-[10px] text-muted/70 font-normal">(stuks of kg)</span></label>
-          <input class="w-full bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none font-mono-num" id="ew-hoeveelheid" type="number">
+          <label class="text-metadata-caps text-muted uppercase">Geschatte hoeveelheid <span class="normal-case text-[10px] text-muted/70 font-normal">— kies eenheid rechts</span></label>
+          <div class="flex gap-2">
+            <input class="flex-1 bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none font-mono-num" id="ew-hoeveelheid" type="number">
+            <select class="bg-surface-container-low border border-border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-info focus:border-info outline-none" id="ew-eenheid">
+              <option value="stuks">stuks</option>
+              <option value="kg">kg</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="space-y-1">
@@ -765,7 +771,7 @@ tailwind.config = {
   <div class="bg-paper rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
     <div class="px-8 pt-8 pb-6 text-center" style="background:#1C2D4A">
       <div class="w-14 h-14 rounded-xl mx-auto mb-4 flex items-center justify-center text-xl font-bold font-mono-num" style="background:#B8963A; color:#fff">BI</div>
-      <h1 class="text-white text-xl font-bold">Inlog Shift Rapportage</h1>
+      <h1 class="text-white text-xl font-bold">WML Shift Rapportage</h1>
       <p class="text-white/60 text-xs mt-1">Biscuit International — Broek op Langedijk</p>
     </div>
     <div id="login-form-paneel" class="p-8 space-y-4">
@@ -882,8 +888,8 @@ const CONFIG = {
 // Kopieer de HTTP POST URL van elke flow via: Trigger → "URL kopiëren".
 // Nooit openbaar delen — de sig=-parameter is een geheim.
 // ═══════════════════════════════════════════════════════════════════════════
-const IT_BOOTSTRAP_URL   = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/24/workflows/8f95a763b9d94b718ae0924f8317d5eb/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NHJZ8RCbHS1IYMzWVZHdfL192vNYYZN45QAXtZRGGQ0';  // Flow 0 — WML Bootstrap Config Ophalen
-const IT_VALIDATE_URL    = 'https://default4789560000864d9cb51e4e9372fda1.a9.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/09/workflows/f593ef2fa6a64227b4a492abc341fcb4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=I42EtoPKwDmkH1X-RnZljUaD6SZvFWxFcRpSqr95ElA';  // Flow 4 — WML Gebruiker Valideren
+const IT_BOOTSTRAP_URL   = '';  // Flow 0 — WML Bootstrap Config Ophalen
+const IT_VALIDATE_URL    = '';  // Flow 4 — WML Gebruiker Valideren
 // ═══════════════════════════════════════════════════════════════════════════
 
 const FLOW_URLS = {
@@ -1249,13 +1255,37 @@ function herstelShiftData(naam){
     const raw = localStorage.getItem('wml_data_' + naam.toLowerCase());
     if(!raw) return false;
     const pakket = JSON.parse(raw);
-    // Alleen data van vandaag herstellen
+
+    // Andere dag → data weggooien
     if(pakket.datum !== vandaagISO()){
       localStorage.removeItem('wml_data_' + naam.toLowerCase());
       console.info('Shift-data verouderd (andere dag) — verwijderd.');
       return false;
     }
-    // Data herstellen in formState
+
+    // Bug-fix: ook controleren of het shift-tijdvak nog klopt.
+    // Als Nikita data van de Avondshift heeft maar nu de Nachtshift begonnen is,
+    // wil je niet de verkeerde shift-naam tonen of data van de vorige shift vermengen.
+    const huidigeShift = bepaalShiftOpBasisVanTijd();
+    const hersteldeShiftProductie = pakket.data && pakket.data.Productie && pakket.data.Productie.shift;
+    const hersteldeShiftInpak    = pakket.data && pakket.data.Inpak    && pakket.data.Inpak.shift;
+
+    // Als de shift veranderd is: bewaar alleen de blokkades (die zijn shift-onafhankelijk),
+    // begin voor de rest opnieuw. Blokkades blijven actief tot QA ze vrijgeeft.
+    if(hersteldeShiftProductie && hersteldeShiftProductie !== huidigeShift){
+      console.info('Shift-tijdvak veranderd (' + hersteldeShiftProductie + ' → ' + huidigeShift + ') — nieuwe shift gestart, blokkades overgedragen.');
+      const actieveBlokkades = {
+        Productie: (pakket.data.Productie.blokkades||[]).filter(function(b){return b.status==='Actief';}),
+        Inpak:     (pakket.data.Inpak    .blokkades||[]).filter(function(b){return b.status==='Actief';})
+      };
+      // Start schoon met alleen de carry-forward blokkades
+      formState.Productie.blokkades = actieveBlokkades.Productie;
+      formState.Inpak.blokkades     = actieveBlokkades.Inpak;
+      localStorage.removeItem('wml_data_' + naam.toLowerCase());
+      return false; // toon geen herstel-toast, maar blokkades zijn wel meegenomen
+    }
+
+    // Zelfde dag, zelfde shift → volledig herstellen
     Object.assign(formState, pakket.data);
     console.info('Shift-data hersteld voor', naam, '— opgeslagen om', pakket.opgeslagenOp);
     return true;
@@ -1841,6 +1871,11 @@ function handleOverdracht(afdeling){
     fs.gembaAfgestemd = true;
     if(meldingen.length){ console.group('Power Automate — notificaties bij overdracht ('+afdeling+')'); meldingen.forEach(function(m){console.log(m);}); console.groupEnd(); }
     await logSharePointPayload(afdeling, 'Overgedragen');
+
+    // Bug-fix: na succesvolle overdracht lokale VERVOLGACTIES leegmaken.
+    // Anders verschijnen ze dubbel in Dagoverleg (lokaal + uit SharePoint via Flow 2).
+    VERVOLGACTIES.length = 0;
+
     if(GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling].length>0) verplaatsNaarArchief(afdeling, GESCHIEDENIS[afdeling][0]);
     GESCHIEDENIS[afdeling] = [fs];
     const actieveBlokkades = fs.blokkades.filter(function(b){return b.status==='Actief';}).map(function(b){return Object.assign({}, b);});
@@ -2496,6 +2531,7 @@ function opslaanEWeging(){
   const tijdvak = document.getElementById('ew-tijdvak').value.trim();
   const soortUitstoot = document.getElementById('ew-soort').value;
   const hoeveelheid = document.getElementById('ew-hoeveelheid').value;
+  const eenheid = (document.getElementById('ew-eenheid')||{}).value || 'stuks';
   const actie = document.getElementById('ew-actie').value.trim();
 
   const fouten = [];
@@ -2513,7 +2549,7 @@ function opslaanEWeging(){
   const afdeling = ewegingContext.afdeling;
   const bestaand = ewegingContext.mode==='bewerken' ? formState[afdeling].eWegingen[ewegingContext.idx] : null;
   const item = { lijn:lijn, artikelBatch:artikelBatch, tijdvak:tijdvak, soortUitstoot:soortUitstoot,
-    hoeveelheid: hoeveelheid===''?0:Number(hoeveelheid), actie:actie,
+    hoeveelheid: hoeveelheid===''?0:Number(hoeveelheid), eenheid:eenheid, actie:actie,
     gemeldOp: bestaand ? bestaand.gemeldOp : tijdNu(), gemeldDoor: bestaand ? bestaand.gemeldDoor : (INGELOGD ? INGELOGD.naam : null) };
   if(ewegingContext.mode==='bewerken') formState[afdeling].eWegingen.splice(ewegingContext.idx, 1, item);
   else formState[afdeling].eWegingen.push(item);
@@ -2566,7 +2602,7 @@ function renderQaSectie(afdeling){
       html: '<div class="p-2.5 border-l-4 border-l-info bg-info-pale/30 rounded mb-2 flex justify-between items-start gap-2">'
         + '<div class="min-w-0">'
         + '<p class="text-xs font-bold flex items-center gap-1.5 flex-wrap"><span class="text-[9.5px] font-bold text-white px-2 py-0.5 rounded-full uppercase tracking-wide" style="background:#1D4ED8">'+esc(e.soortUitstoot)+'</span>'+esc(e.artikelBatch)+'</p>'
-        + '<p class="text-[10px] text-muted mt-0.5 font-mono-num">'+e.lijn+' · '+esc(e.tijdvak)+(e.hoeveelheid?' · '+e.hoeveelheid:'')+'</p>'
+        + '<p class="text-[10px] text-muted mt-0.5 font-mono-num">'+e.lijn+' · '+esc(e.tijdvak)+(e.hoeveelheid?' · '+e.hoeveelheid+' '+(e.eenheid||'stuks'):'')+'</p>'
         + '<p class="text-[10px] text-muted mt-0.5 italic">'+esc(e.actie)+'</p>'
         + '</div>'
         + '<span class="material-symbols-outlined text-[16px] cursor-pointer text-muted hover:text-ink shrink-0" onclick="openBewerkEWeging(\''+afdeling+'\','+idx+')">edit</span>'
@@ -2720,8 +2756,11 @@ function toggleLijnVeld(){
   const sel = document.getElementById('nf-lijn');
   if(cat==='Productie-afwijking'){
     wrap.style.display='';
-    const alleLijnen = Array.from(new Set(CONFIG.productielijnen.Productie.concat(CONFIG.productielijnen.Inpak)));
-    sel.innerHTML = alleLijnen.map(function(l){return '<option>'+l+'</option>';}).join('');
+    // Bug-fix: gebruik de afdeling van de modal-context, niet een mix van alle lijnen.
+    // Zo kan een Inpak-gebruiker nooit Deegmakerij (Productie-lijn) selecteren.
+    const afdeling = modalContext.afdeling || huidigeAfdeling;
+    const lijnen = CONFIG.productielijnen[afdeling] || [];
+    sel.innerHTML = lijnen.map(function(l){return '<option>'+l+'</option>';}).join('');
   } else { wrap.style.display='none'; }
 }
 function toggleCategorieVelden(){
@@ -2961,8 +3000,10 @@ function bouwSharePointPayload(afdeling){
       prioriteit:         nn(basis.prioriteit),
       toegewezen:         nn(basis.toegewezen),
       gemeldOp:           nn(basis.gemeldOp),
-      vreemdVoorwerp:     nb(basis.vreemdVoorwerp),   // altijd aanwezig, altijd boolean
-      heeftFoto:          nb(basis.heeftFoto)          // altijd aanwezig, altijd boolean
+      vreemdVoorwerp:     nb(basis.vreemdVoorwerp),
+      heeftFoto:          nb(basis.heeftFoto),
+      fotoData:           basis.fotoData  || null,  // altijd aanwezig — null als geen foto
+      fotoNaam:           basis.fotoNaam  || ''     // altijd aanwezig — leeg als geen foto
     };
   }
 
@@ -3039,6 +3080,7 @@ function bouwSharePointPayload(afdeling){
       tijdvak:       nn(e.tijdvak),
       soortUitstoot: nn(e.soortUitstoot),
       hoeveelheid:   e.hoeveelheid != null ? e.hoeveelheid : 0,
+      eenheid:       nn(e.eenheid) || 'stuks',
       actie:         nn(e.actie),
       gemeldDoor:    nn(e.gemeldDoor),
       gemeldOp:      nn(e.gemeldOp)
