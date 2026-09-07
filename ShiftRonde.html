@@ -1432,22 +1432,37 @@ async function laadConceptVanSharePoint(naam){
     const data = await resp.json();
     if(!data.gevonden || !data.conceptData) return false;
 
-    const hersteld = JSON.parse(data.conceptData);
-    if(hersteld.Productie && hersteld.Productie.datum !== vandaagISO()) return false;
+    const spData = JSON.parse(data.conceptData);
+    if(spData.Productie && spData.Productie.datum !== vandaagISO()) return false;
 
-    Object.assign(formState, hersteld);
+    // Vergelijk timestamp SP vs lokale data
+    // SP-timestamp staat in data.opgeslagenOp (gezet door Flow 6)
+    const spTijd    = new Date(data.opgeslagenOp || 0).getTime();
+    const lokaalRaw = localStorage.getItem('wml_data_' + naam.toLowerCase());
+    const lokaalTijd = lokaalRaw
+      ? new Date(JSON.parse(lokaalRaw).opgeslagenOp || 0).getTime()
+      : 0;
+
+    if(spTijd <= lokaalTijd){
+      // Lokale data is even recent of nieuwer → SP niet gebruiken
+      console.info('Lokale data is recenter dan SharePoint — geen overschrijving.');
+      return false;
+    }
+
+    // SP is nieuwer → overschrijf formState
+    Object.assign(formState, spData);
 
     // Herstel foto's als ze beschikbaar zijn
     if(data.conceptFotos){
       try {
         const fotos = JSON.parse(data.conceptFotos);
         herstelFotosInFormState(fotos);
-        const aantalFotos = Object.keys(fotos).length;
-        if(aantalFotos) console.info('Fotos hersteld:', aantalFotos);
+        const n = Object.keys(fotos).length;
+        if(n) console.info('Fotos hersteld vanuit SharePoint:', n);
       } catch(fe){ console.warn('Fotos herstellen mislukt:', fe.message); }
     }
 
-    console.info('Concept geladen van SharePoint voor:', naam);
+    console.info('SharePoint-data is nieuwer — formState bijgewerkt voor:', naam);
     return true;
   } catch(e){
     console.warn('Concept laden van SharePoint mislukt:', e.message);
@@ -1460,7 +1475,7 @@ function volledigInloggen(gebruiker){
   INGELOGD = gebruiker;
   localStorage.setItem('wml_gebruiker', JSON.stringify(INGELOGD));
 
-  // Stap 1: probeer lokale data te herstellen (zelfde apparaat, snel)
+  // Stap 1: lokale data ophalen (snel, geen netwerk nodig)
   const lokaalHersteld = herstelShiftData(gebruiker.naam);
 
   verbergLoginOverlay();
@@ -1468,21 +1483,27 @@ function volledigInloggen(gebruiker){
   renderHuidigeShift();
   resetAutoUitlogTimer();
 
-  if(lokaalHersteld){
-    toonToast('✓ Je shift-data van vandaag is hersteld.');
-    return;
+  // Stap 2: ALTIJD ook SharePoint checken — ongeacht of lokale data aanwezig is.
+  // Reden: dezelfde gebruiker kan op een ander apparaat recentere data hebben
+  // ingevoerd die via Flow 6 naar SharePoint is gesynchroniseerd.
+  // We vergelijken de tijdstempels en gebruiken de meest recente versie.
+  if(FLOW_URLS.getConceptShift){
+    laadConceptVanSharePoint(gebruiker.naam).then(function(spHersteld){
+      if(!spHersteld){
+        // Geen SP-data gevonden: toon melding alleen als er lokale data was
+        if(lokaalHersteld) toonToast('✓ Je shift-data van vandaag is hersteld.');
+        return;
+      }
+      // SP-data gevonden: vergelijk met lokale timestamp
+      // laadConceptVanSharePoint zet de data al in formState als het nieuwer is
+      renderHuidigeShift();
+      toonToast('✓ Shift-data gesynchroniseerd vanuit SharePoint.');
+    });
+  } else {
+    // Geen Flow 7 ingesteld: alleen lokale data
+    if(lokaalHersteld) toonToast('✓ Je shift-data van vandaag is hersteld.');
   }
 
-  // Stap 2: geen lokale data → probeer SharePoint (ander apparaat)
-  if(FLOW_URLS.getConceptShift){
-    toonToast('Controleren op data van ander apparaat...');
-    laadConceptVanSharePoint(gebruiker.naam).then(function(spHersteld){
-      if(spHersteld){
-        renderHuidigeShift();
-        toonToast('✓ Shift-data geladen vanuit SharePoint (ander apparaat).');
-      }
-    });
-  }
   console.info('Ingelogd als:', INGELOGD.naam, INGELOGD.offline ? '(demo)' : '(gevalideerd)');
 }
 
