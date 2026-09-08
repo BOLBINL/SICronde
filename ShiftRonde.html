@@ -2267,7 +2267,9 @@ function handleOverdracht(afdeling){
         body:    JSON.stringify({
           actie:    'afronden',
           gebruiker: INGELOGD.naam,
-          datum:    vandaagISO()
+          afdeling: afdeling,
+          datum:    vandaagISO(),
+          shift:    fs.shift || bepaalShiftOpBasisVanTijd()
         })
       }).catch(function(e){ console.warn('Concept opruimen mislukt:', e.message); });
     }
@@ -2814,27 +2816,60 @@ function renderGeschiedenis(){
   });
   ARCHIEF.forEach(function(r, idx){ items.push({type:'archief', afdeling:r.afdeling, datum:r.datum, shift:r.shift, tl:r.tl, status:r.status, op:r.afgeslotenOp, snapshot:r.snapshot, archiefIdx:idx}); });
 
-  const iconPerShift = {Ochtend:'wb_sunny', Middag:'wb_sunny', Avond:'wb_twilight', Nacht:'bedtime'};
-
-  // Als lokale geschiedenis leeg is EN Flow 3 beschikbaar → laad uit SharePoint
-  if(items.length === 0 && FLOW_URLS.getVorigeShift){
+  if(!FLOW_URLS.getVorigeShift){
+    // Flow 3 URL niet ingesteld
     document.getElementById('geschiedenis-lijst').innerHTML =
-      '<p class="text-sm text-muted flex items-center gap-2"><span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span> Geschiedenis laden uit SharePoint...</p>';
+      '<div class="bg-warning-pale border border-warning rounded-lg p-4 text-sm">'
+      +'<p class="font-bold text-warning mb-1">Flow 3 niet ingesteld</p>'
+      +'<p class="text-muted">Stel de URL in via <b>Configuratie → Verbinding → Config herladen</b>. '
+      +'Daarna verschijnt de geschiedenis automatisch.</p></div>';
+    if(items.length > 0) renderGeschiedenisUI();
+    return;
+  }
+
+  if(items.length === 0){
+    // Lokale data leeg — laad vanuit SharePoint
+    document.getElementById('geschiedenis-lijst').innerHTML =
+      '<p class="text-sm text-muted flex items-center gap-2">'
+      +'<span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>'
+      +' Geschiedenis ophalen uit SharePoint...</p>';
 
     Promise.all(['Productie','Inpak'].map(function(afd){
       return fetch(FLOW_URLS.getVorigeShift, {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({afdeling: afd})
-      }).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; });
+      })
+      .then(function(r){
+        if(!r.ok){ console.warn('Flow 3 HTTP fout:', r.status, 'voor afdeling', afd); return null; }
+        return r.json();
+      })
+      .catch(function(e){ console.warn('Flow 3 netwerk fout:', e.message); return null; });
     })).then(function(results){
+      let gevonden = 0;
       results.forEach(function(data, i){
         const afd = i===0?'Productie':'Inpak';
+        console.info('Flow 3 response voor', afd, ':', data ? (data.shift ? 'shift gevonden' : 'geen shift') : 'null/fout');
         if(data && data.shift){
           const snap = spResponseNaarShiftSnapshot(data.shift, data.afwijkingen||[]);
+          snap.afdeling = afd; // ensure afdeling is set
           GESCHIEDENIS[afd] = [snap];
+          gevonden++;
         }
       });
-      renderGeschiedenisUI(); // herrender met SP-data
+      if(gevonden === 0){
+        // Niks gevonden — toon duidelijke melding + herlaadknop
+        document.getElementById('geschiedenis-lijst').innerHTML =
+          '<div class="text-center py-8">'
+          +'<span class="material-symbols-outlined text-muted text-[48px] block mb-3">history</span>'
+          +'<p class="text-sm text-muted mb-4">Geen overgedragen shifts gevonden in SharePoint.<br>'
+          +'Controleer of Flow 3 correct is ingesteld en of er shifts zijn overgedragen.</p>'
+          +'<button onclick="renderGeschiedenis()" class="px-4 py-2 border border-border rounded-lg text-sm hover:bg-surface-container transition-colors flex items-center gap-2 mx-auto">'
+          +'<span class="material-symbols-outlined text-[16px]">refresh</span> Opnieuw proberen</button>'
+          +'</div>';
+        return;
+      }
+      renderGeschiedenisUI();
     });
     return;
   }
