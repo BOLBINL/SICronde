@@ -2755,49 +2755,71 @@ function spResponseNaarShiftSnapshot(spShift, spAfwijkingen){
 
 async function openVorigeShiftModal(afdeling){
   document.getElementById('shift-detail-titel').textContent = 'Vorige shift — ' + afdeling;
-  document.getElementById('shift-detail-body').innerHTML =
-    '<p class="text-sm text-muted flex items-center gap-2">'
-    + '<span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>'
-    + ' Vorige shift ophalen uit SharePoint...</p>';
   openModal('modal-shift-detail');
 
-  // Probeer eerst SharePoint via Flow 3
-  if(FLOW_URLS.getVorigeShift){
-    try {
-      const resp = await fetch(FLOW_URLS.getVorigeShift, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ afdeling: afdeling })
-      });
-      if(resp.ok){
-        const data = await resp.json();
-        if(data.shift){
-          const snapshot = spResponseNaarShiftSnapshot(data.shift, data.afwijkingen || []);
-          _printSnapshot = snapshot;
-          document.getElementById('shift-detail-body').innerHTML = bouwShiftDetailHtml(snapshot);
-          return;
-        } else {
-          document.getElementById('shift-detail-body').innerHTML =
-            '<p class="text-sm text-muted italic">Nog geen overgedragen shift gevonden voor ' + afdeling + ' in SharePoint.</p>';
-          return;
-        }
-      }
-    } catch(e){
-      console.warn('Flow 3 niet bereikbaar — gebruik in-memory fallback:', e.message);
+  // Helper: toon de snapshot — altijd lokale data als SP niets geeft
+  function toonSnapshot(snapshot, bron){
+    if(!snapshot){
+      document.getElementById('shift-detail-body').innerHTML =
+        '<p class="text-sm text-muted italic">Nog geen overgedragen shift gevonden voor ' + afdeling + '.</p>';
+      return;
     }
+    _printSnapshot = snapshot;
+    document.getElementById('shift-detail-body').innerHTML = bouwShiftDetailHtml(snapshot);
+    console.info('Vorige shift geladen via', bron);
   }
 
-  // Fallback: in-memory GESCHIEDENIS (shiften die in deze sessie zijn overgedragen)
-  const log = GESCHIEDENIS[afdeling];
-  const s   = log && log[0];
-  _printSnapshot = s || null;
-  document.getElementById('shift-detail-body').innerHTML = s
-    ? bouwShiftDetailHtml(s)
-    : '<p class="text-sm text-muted italic">Nog geen vorige shift overgedragen.'
-      + (!FLOW_URLS.getVorigeShift
-        ? ' Stel Flow 3 in via <b>Configuratie → Verbinding</b> om historische shifts uit SharePoint te laden.'
-        : '')
-      + '</p>';
+  // Lokale GESCHIEDENIS alvast klaarhouden als fallback
+  const lokaalSnapshot = GESCHIEDENIS[afdeling] && GESCHIEDENIS[afdeling][0] || null;
+
+  if(!FLOW_URLS.getVorigeShift){
+    // Flow 3 niet ingesteld → toon lokale data of leeg
+    document.getElementById('shift-detail-body').innerHTML =
+      '<p class="text-sm text-muted flex items-center gap-2">'
+      +'<span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>'
+      +' Laden...</p>';
+    toonSnapshot(lokaalSnapshot, 'lokale sessie');
+    return;
+  }
+
+  // Laad-indicator tonen
+  document.getElementById('shift-detail-body').innerHTML =
+    '<p class="text-sm text-muted flex items-center gap-2">'
+    +'<span class="material-symbols-outlined text-[16px] animate-spin">autorenew</span>'
+    +' Vorige shift ophalen uit SharePoint...</p>';
+
+  try {
+    const resp = await fetch(FLOW_URLS.getVorigeShift, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ afdeling: afdeling })
+    });
+
+    if(resp.ok){
+      const data = await resp.json();
+      if(data.shift){
+        // SP heeft data → gebruik SP (meest actueel)
+        const spSnapshot = spResponseNaarShiftSnapshot(data.shift, data.afwijkingen || []);
+        toonSnapshot(spSnapshot, 'SharePoint (Flow 3)');
+        return;
+      }
+    }
+  } catch(e){
+    console.warn('Flow 3 niet bereikbaar:', e.message);
+  }
+
+  // SP gaf niets terug → gebruik lokale GESCHIEDENIS van deze sessie
+  if(lokaalSnapshot){
+    toonSnapshot(lokaalSnapshot, 'lokale sessie (SP leeg/onbereikbaar)');
+  } else {
+    document.getElementById('shift-detail-body').innerHTML =
+      '<div class="text-center py-6">'
+      +'<p class="text-sm text-muted italic mb-3">Geen shift gevonden in SharePoint of lokale sessie.</p>'
+      +'<p class="text-xs text-muted">Controleer Flow 3 — de meest recente overdracht is mogelijk nog niet verwerkt.<br>'
+      +'Probeer het over 10 seconden opnieuw.</p>'
+      +'<button onclick="openVorigeShiftModal(\''+afdeling+'\')" class="mt-3 px-4 py-2 border border-border rounded-lg text-xs hover:bg-surface-container transition-colors">↻ Opnieuw proberen</button>'
+      +'</div>';
+  }
 }
 function openArchiefDetail(idx){
   const r = ARCHIEF[idx];
